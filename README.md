@@ -4,4 +4,4 @@
 [![Windows Build](https://ci.appveyor.com/api/projects/status/qcpmg6thnmwe09tn/branch/master?svg=true)](https://ci.appveyor.com/project/AnthonyLloyd/Fsion)
 [![NuGet Badge](https://buildstats.info/nuget/Fsion)](https://www.nuget.org/packages/Fsion)
 
-EAVT (entity, attribute, value, time) database for F#
+EAVT (Entity, Attribute, Value, Time) database for F#
