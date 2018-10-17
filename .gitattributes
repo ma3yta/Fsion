@@ -13,6 +13,7 @@
 *.sln text eol=lf crlf=input
 .gitattributes text eol=lf crlf=input
 .gitignore text eol=lf crlf=input
+LICENSE text eol=lf crlf=input
 
 # These files should be treated as binary
 *.png binary
