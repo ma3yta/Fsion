@@ -1,6 +1,7 @@
 bin
 obj
 packages
+paket-files
 .fake
 .vs
 .ionide

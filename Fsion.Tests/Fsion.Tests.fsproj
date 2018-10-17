@@ -16,10 +16,5 @@
     <ProjectReference Include="..\Fsion\Fsion.fsproj" />
   </ItemGroup>
 
-
-  <ItemGroup>
-    <PackageReference Include="Expecto" Version="8.4.2" />
-    <PackageReference Include="Expecto.FsCheck" Version="8.4.2" />
-  </ItemGroup>
-
+  <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
