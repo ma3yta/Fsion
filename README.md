@@ -6,7 +6,7 @@
 
 Fsion (pronounced Fusion) - EAVT (Entity, Attribute, Value, Time) database for F#
 
-Vaporware currently but here is an outline.
+Plasmaware currently but here is an outline.
 
 ## Key ideas
 
