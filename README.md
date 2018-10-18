@@ -14,7 +14,7 @@ Vaporware currently but here is an outline.
 - Embedded - server (or client) can perform typed queries in memory. Bye-bye sending strings to a database machine.
 - Embedded - scale up rather than out using in memory querying and local disk. Much simpler and cheaper $/perf.
 - Embedded - in memory or memory and disk using [FASTER](https://github.com/Microsoft/FASTER).
-- Native Attributes - richer metadata: F# types, display, localization, powerful F# custom aggregation.
+- Native Attributes - richer metadata: F# types, validation, display, localization, powerful F# custom aggregation.
 - Native Attributes - F# function attributes (persist only real datums), saves memory and disk, think DAG.
 - Transactions - just a normal entity, attach custom context attributes.
 - Transactions - persist to cloud and local storage.
@@ -48,5 +48,6 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - Satellite projects
     - Data mapping
     - Reconciliation
+    - Permissions
     - Scheduling
     - Accounting attribute functions with aggregation
