@@ -11,22 +11,29 @@ Plasmaware currently but here is an outline.
 ## Key ideas
 
 - Full bi-temporal historic and audit querying like [Datomic](https://www.datomic.com/) but with (Business Date, Value, Transaction Id) compressed time-series.
-- Embedded - server (or client) can perform typed queries in memory. Bye-bye sending strings to a database machine.
-- Embedded - scale up rather than out using in memory querying and local disk. Much simpler and cheaper $/perf.
-- Embedded - in memory or memory and disk using [FASTER](https://github.com/Microsoft/FASTER).
-- Native Attributes - richer metadata: F# types, constraints (checked client side), display, localization, powerful F# custom aggregation.
-- Native Attributes - F# function attributes and constraints (persist only real datums), saves memory and disk, think DAG.
-- Transactions - just a normal entity, attach custom context attributes.
-- Transactions - persist to cloud and local storage, send to clients or replicates.
-- Transactions - query side tx id only updated if dependent constraint attributes pass, easier what-if functionality.
-- Transactions - run in parallel if no shared dependent constraints.
-- Views - F# functions that take unstructured datums to fully type safe data structures.
-- Indexes - like [Datomic](https://docs.datomic.com/cloud/query/raw-index-access.html) (hidden, automatic) EAVT, AEVT, VAET etc.
-- API - binary Socket, Linq, Excel.
-- API - think more GraphQL and XPath rather than SQL.
-- Not Datomic - time-series compression.
-- Not Datomic - entities do have a type. I think this will lead to type safe relations, faster query and better compression.
-- Not Datomic - not SQL based, either typed in memory query or simple XPath/GraphQL expressions.
+- Embedded
+    - server (or client) can perform typed queries in memory. Bye-bye sending strings to a database machine.
+    - scale up rather than out using in memory querying and local disk. Much simpler and cheaper $/perf.
+    - in memory or memory and disk using [FASTER](https://github.com/Microsoft/FASTER).
+- Native Attributes
+    - richer metadata: F# types, constraints (checked client side), display, localization, powerful F# custom aggregation.
+    - F# function attributes and constraints (persist only real datums), saves memory and disk, think DAG.
+- Transactions
+    - just a normal entity, attach custom context attributes.
+    - persist to cloud and local storage, send to clients or replicates.
+    - query side tx id only updated if dependent constraint attributes pass, easier what-if functionality.
+    - run in parallel if no shared dependent constraints.
+- Views
+    - F# functions that take unstructured datums to fully type safe data structures.
+- Indexes
+    - like [Datomic](https://docs.datomic.com/cloud/query/raw-index-access.html) (hidden, automatic) EAVT, AEVT, VAET etc.
+- API
+    - binary Socket, Linq, Excel.
+    - think more GraphQL and XPath rather than SQL.
+- Not Datomic
+    - time-series compression.
+    - entities do have a type. I think this will lead to type safe relations, faster query and better compression.
+    - not SQL based, either typed in memory query or simple XPath/GraphQL expressions.
 
 Having built parts of this multiple times I want to create a high-quality OSS version and build on it.
 
