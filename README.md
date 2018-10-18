@@ -20,7 +20,7 @@ Plasmaware currently but here is an outline.
     - F# function attributes and constraints (persist only real datums), saves memory and disk, think DAG.
 - Transactions
     - just a normal entity, attach custom context attributes.
-    - persist to cloud and local storage, send to clients or replicates.
+    - persist to cloud and local storage, send to clients or replicas.
     - query side tx id only updated if dependent constraint attributes pass, easier what-if functionality.
     - run in parallel if no shared dependent constraints.
 - Views
