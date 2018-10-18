@@ -38,7 +38,8 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - DataSeries with compression - DONE
 - Define internal APIs (DB, Log) with in memory and disk implementations - October?
 - Attribute metadata and functionality - November?
-- Indexes - November?
+- Transactor - November?
+- Indexes - December?
 - Simple Excel API - December?
 - Large sample database
 - Other internal API implementations
