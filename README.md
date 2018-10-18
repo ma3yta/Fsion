@@ -45,7 +45,7 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - Query language
 - Other external APIs
 - Views
-- Satalite projects
+- Satellite projects
     - Data mapping
     - Reconciliation
     - Scheduling
