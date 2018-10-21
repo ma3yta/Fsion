@@ -12,7 +12,7 @@ let serializeTests =
             let j,_ = serializeGet (b,0)
             Expect.equal j i "testRoundtrip same"
 
-    ftestList "serialize" [
+    testList "serialize" [
 
         testAsync "zigzag examples" {
                 Serialize.zigzag  0 |> Expect.equal 0u <| "0"
@@ -97,7 +97,7 @@ let serializeTests =
 
 let dataSeriesTests =
 
-    ftestList "dataSeries" [
+    testList "dataSeries" [
         
         testAsync "one get" {
             let dataSeries = DataSeries.single (Date 11u,Tx 17u,13L)
@@ -112,7 +112,7 @@ let dataSeriesTests =
         testAsync "two get" {
             let dataSeries =
                 DataSeries.single (Date 11u,Tx 17u,13L)
-                |> DataSeries.add (Date 19u,Tx 29u,23L)
+                |> DataSeries.append (Date 19u,Tx 29u,23L)
             let exact1 = DataSeries.get (Date 11u) Tx.maxValue dataSeries
             Expect.equal exact1 (Date 11u, Tx 17u, 13L) "exact1"
             let exact2 = DataSeries.get (Date 19u) Tx.maxValue dataSeries
@@ -128,8 +128,8 @@ let dataSeriesTests =
         testAsync "three get" {
             let dataSeries =
                 DataSeries.single (Date 11u,Tx 17u,13L)
-                |> DataSeries.add (Date 19u,Tx 29u,23L)
-                |> DataSeries.add (Date 17u,Tx 37u,31L)
+                |> DataSeries.append (Date 19u,Tx 29u,23L)
+                |> DataSeries.append (Date 17u,Tx 37u,31L)
             let exact1 = DataSeries.get (Date 11u) Tx.maxValue dataSeries
             Expect.equal exact1 (Date 11u, Tx 17u, 13L) "exact1"
             let exact2 = DataSeries.get (Date 19u) Tx.maxValue dataSeries
@@ -150,7 +150,7 @@ let dataSeriesTests =
                                 list: (Date * Tx * int64) list) ->
             let dataSeries =
                 DataSeries.single first
-                |> List.foldBack DataSeries.add list
+                |> List.foldBack DataSeries.append list
 
             let map =
                 List.sort (first :: list)
@@ -183,7 +183,7 @@ let dataSeriesTests =
             
             let dataSeriesFull =
                 DataSeries.single first
-                |> List.foldBack DataSeries.add list
+                |> List.foldBack DataSeries.append list
 
             let dataSeriesFiltered =
                 let filteredList =
@@ -195,7 +195,7 @@ let dataSeriesTests =
                     |> DataSeries.single
                 | h::l ->
                     DataSeries.single h
-                    |> List.foldBack DataSeries.add l
+                    |> List.foldBack DataSeries.append l
 
             let full = DataSeries.get queryDate queryTx dataSeriesFull
             let filtered = DataSeries.get queryDate queryTx dataSeriesFiltered
@@ -204,79 +204,86 @@ let dataSeriesTests =
         )
 
         testAsync "one set get" {
-            let dataSeries = DataSetSeries.single (Date 11u,Tx 17u,13UL)
-            let exact = DataSetSeries.get (Date 11u) Tx.maxValue dataSeries
+            let dataSeries =
+                DataSeries.setAdd (Date 11u,Tx 17u,13UL)
+                |> DataSeries.single
+            let exact = DataSeries.setGet (Date 11u) Tx.maxValue dataSeries
             Expect.equal exact (set [13UL]) "exact"
-            let before = DataSetSeries.get (Date 10u) Tx.maxValue dataSeries
+            let before = DataSeries.setGet (Date 10u) Tx.maxValue dataSeries
             Expect.equal before (set []) "before"
-            let after = DataSetSeries.get (Date 12u) Tx.maxValue dataSeries
+            let after = DataSeries.setGet (Date 12u) Tx.maxValue dataSeries
             Expect.equal after (set [13UL]) "after"
         }
 
         testAsync "two set get" {
             let dataSeries =
-                DataSetSeries.single (Date 11u,Tx 17u,13UL)
-                |> DataSetSeries.add (Date 19u,Tx 29u,23UL)
-            let exact1 = DataSetSeries.get (Date 11u) Tx.maxValue dataSeries
+                DataSeries.setAdd (Date 11u,Tx 17u,13UL)
+                |> DataSeries.single
+                |> DataSeries.append (DataSeries.setAdd (Date 19u,Tx 29u,23UL))
+            let exact1 = DataSeries.setGet (Date 11u) Tx.maxValue dataSeries
             Expect.equal exact1 (set [13UL]) "exact1"
-            let exact2 = DataSetSeries.get (Date 19u) Tx.maxValue dataSeries
+            let exact2 = DataSeries.setGet (Date 19u) Tx.maxValue dataSeries
             Expect.equal exact2 (set [13UL;23UL]) "exact2"
-            let before = DataSetSeries.get (Date 10u) Tx.maxValue dataSeries
+            let before = DataSeries.setGet (Date 10u) Tx.maxValue dataSeries
             Expect.equal before (set []) "before"
-            let between = DataSetSeries.get (Date 15u) Tx.maxValue dataSeries
+            let between = DataSeries.setGet (Date 15u) Tx.maxValue dataSeries
             Expect.equal between (set [13UL]) "between"
-            let after = DataSetSeries.get (Date 20u) Tx.maxValue dataSeries
+            let after = DataSeries.setGet (Date 20u) Tx.maxValue dataSeries
             Expect.equal after (set [13UL;23UL]) "after"
         }
 
         testAsync "three set get" {
             let dataSeries =
-                DataSetSeries.single (Date 11u,Tx 17u,13UL)
-                |> DataSetSeries.add (Date 19u,Tx 29u,23UL)
-                |> DataSetSeries.add (Date 17u,Tx 37u,31UL)
-            let exact1 = DataSetSeries.get (Date 11u) Tx.maxValue dataSeries
+                DataSeries.setAdd (Date 11u,Tx 17u,13UL)
+                |> DataSeries.single
+                |> DataSeries.append (DataSeries.setAdd (Date 19u,Tx 29u,23UL))
+                |> DataSeries.append (DataSeries.setAdd (Date 17u,Tx 37u,31UL))
+            let exact1 = DataSeries.setGet (Date 11u) Tx.maxValue dataSeries
             Expect.equal exact1 (set [13UL]) "exact1"
-            let exact2 = DataSetSeries.get (Date 19u) Tx.maxValue dataSeries
+            let exact2 = DataSeries.setGet (Date 19u) Tx.maxValue dataSeries
             Expect.equal exact2 (set [13UL;23UL;31UL]) "exact2"
-            let exact3 = DataSetSeries.get (Date 17u) Tx.maxValue dataSeries
+            let exact3 = DataSeries.setGet (Date 17u) Tx.maxValue dataSeries
             Expect.equal exact3 (set [13UL;31UL]) "exact3"
-            let before = DataSetSeries.get (Date 10u) Tx.maxValue dataSeries
+            let before = DataSeries.setGet (Date 10u) Tx.maxValue dataSeries
             Expect.equal before (set []) "before"
-            let middle1 = DataSetSeries.get (Date 15u) Tx.maxValue dataSeries
+            let middle1 = DataSeries.setGet (Date 15u) Tx.maxValue dataSeries
             Expect.equal middle1 (set [13UL]) "middle1"
-            let middle2 = DataSetSeries.get (Date 18u) Tx.maxValue dataSeries
+            let middle2 = DataSeries.setGet (Date 18u) Tx.maxValue dataSeries
             Expect.equal middle2 (set [13UL;31UL]) "middle2"
-            let after = DataSetSeries.get (Date 20u) Tx.maxValue dataSeries
+            let after = DataSeries.setGet (Date 20u) Tx.maxValue dataSeries
             Expect.equal after (set [13UL;23UL;31UL]) "after"
         }
 
         testAsync "set get remove" {
             let dataSeries =
-                DataSetSeries.single (Date 11u,Tx 17u,13UL)
-                |> DataSetSeries.remove (Date 17u,Tx 29u,13UL)
-                |> DataSetSeries.add (Date 19u,Tx 37u,13UL)
-            let exact1 = DataSetSeries.get (Date 11u) Tx.maxValue dataSeries
+                DataSeries.setAdd (Date 11u,Tx 17u,13UL)
+                |> DataSeries.single
+                |> DataSeries.append (DataSeries.setRemove (Date 17u,Tx 29u,13UL))
+                |> DataSeries.append (DataSeries.setAdd (Date 19u,Tx 37u,13UL))
+            let exact1 = DataSeries.setGet (Date 11u) Tx.maxValue dataSeries
             Expect.equal exact1 (set [13UL]) "exact1"
-            let exact2 = DataSetSeries.get (Date 17u) Tx.maxValue dataSeries
+            let exact2 = DataSeries.setGet (Date 17u) Tx.maxValue dataSeries
             Expect.equal exact2 (set []) "exact2"
-            let exact3 = DataSetSeries.get (Date 19u) Tx.maxValue dataSeries
+            let exact3 = DataSeries.setGet (Date 19u) Tx.maxValue dataSeries
             Expect.equal exact3 (set [13UL]) "exact3"
-            let before = DataSetSeries.get (Date 10u) Tx.maxValue dataSeries
+            let before = DataSeries.setGet (Date 10u) Tx.maxValue dataSeries
             Expect.equal before (set []) "before"
-            let middle1 = DataSetSeries.get (Date 15u) Tx.maxValue dataSeries
+            let middle1 = DataSeries.setGet (Date 15u) Tx.maxValue dataSeries
             Expect.equal middle1 (set [13UL]) "middle1"
-            let middle2 = DataSetSeries.get (Date 18u) Tx.maxValue dataSeries
+            let middle2 = DataSeries.setGet (Date 18u) Tx.maxValue dataSeries
             Expect.equal middle2 (set []) "middle2"
-            let after = DataSetSeries.get (Date 20u) Tx.maxValue dataSeries
+            let after = DataSeries.setGet (Date 20u) Tx.maxValue dataSeries
             Expect.equal after (set [13UL]) "after"
         }
 
         testProp "set vs map" (fun (first: Date * Tx * uint64,
                                     list: ((Date * Tx * uint64) * bool) list) ->
             let dataSeries =
-                DataSetSeries.single first
+                DataSeries.setAdd first 
+                |> DataSeries.single
                 |> List.foldBack (fun (datum, add) ->
-                    if add then DataSetSeries.add datum else DataSetSeries.remove datum
+                    let conv = if add then DataSeries.setAdd else DataSeries.setRemove
+                    conv datum |> DataSeries.append
                 ) list
 
             let fromList =
@@ -292,18 +299,18 @@ let dataSeriesTests =
             
             let minDate = List.min (fst3 first :: List.map (fst >> fst3) list)
             if minDate > Date.minValue then
-                let before = DataSetSeries.get (minDate-1) Tx.maxValue dataSeries
+                let before = DataSeries.setGet (minDate-1) Tx.maxValue dataSeries
                 Expect.equal before (set []) "before"
 
             fst3 first :: List.map (fst >> fst3) list
             |> List.distinct
             |> List.iter (fun eDate ->
-                let actual = DataSetSeries.get eDate Tx.maxValue dataSeries
+                let actual = DataSeries.setGet eDate Tx.maxValue dataSeries
                 let expectFromList = fromList eDate
                 Expect.equal actual expectFromList "actual"
 
                 let nextDate = eDate+1
-                let next = DataSetSeries.get nextDate Tx.maxValue dataSeries
+                let next = DataSeries.setGet nextDate Tx.maxValue dataSeries
                 let expectFromList = fromList nextDate
                 Expect.equal next expectFromList "next"
             )
@@ -316,8 +323,9 @@ let dataSeriesTests =
                   queryTx: Tx) ->
             
             let dataSeriesFull =
-                DataSetSeries.single first
-                |> List.foldBack DataSetSeries.add list
+                DataSeries.setAdd first
+                |> DataSeries.single
+                |> List.foldBack (DataSeries.setAdd >> DataSeries.append) list
 
             let dataSeriesFiltered =
                 let filteredList =
@@ -326,13 +334,15 @@ let dataSeriesTests =
                 match filteredList with
                 | [] ->
                     List.minBy (fun (d,t,v) -> t,d,v) (first :: list)
-                    |> DataSetSeries.single
+                    |> DataSeries.setAdd
+                    |> DataSeries.single
                 | h::l ->
-                    DataSetSeries.single h
-                    |> List.foldBack DataSetSeries.add l
+                    DataSeries.setAdd h
+                    |> DataSeries.single
+                    |> List.foldBack (DataSeries.setAdd >> DataSeries.append) l
 
-            let full = DataSetSeries.get queryDate queryTx dataSeriesFull
-            let filtered = DataSetSeries.get queryDate queryTx dataSeriesFiltered
+            let full = DataSeries.setGet queryDate queryTx dataSeriesFull
+            let filtered = DataSeries.setGet queryDate queryTx dataSeriesFiltered
 
             Expect.equal full filtered "same"
         )

@@ -8,9 +8,12 @@
 
   <ItemGroup>
     <Compile Include="Prelude.fs" />
-    <Compile Include="SerializeTests.fs" />
+    <Compile Include="DataSeriesTests.fs" />
+    <Compile Include="DatabaseTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
+
+  <ItemGroup />
 
   <ItemGroup>
     <ProjectReference Include="..\Fsion\Fsion.fsproj" />

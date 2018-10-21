@@ -224,7 +224,7 @@ module internal DataSeries =
         |> DataSeries
 
     /// Create a new DataSetSeries from a datum and DataSetSeries.
-    let add (Date newDate,Tx newTx, newValue) (DataSeries dataSeries) =
+    let append (Date newDate,Tx newTx, newValue) (DataSeries dataSeries) =
         let currentDate,i = uint32Get (dataSeries,0)
         let currentTx,i = uint32Get (dataSeries,i)
         let currentValue,i = uint64Get (dataSeries,i) |> mapFst unzigzag64
@@ -311,31 +311,16 @@ module internal DataSeries =
         getValue i currentDate currentValue currentTx
             (currentDate,currentValue,currentTx)
 
-[<Struct>]
-type DataSetSeries = DataSetSeries of byte []
-
-module DataSetSeries =
-    open Serialize
-
-    /// Create a new DataSetSeries from a single add set datum.
-    let single (Date dt,Tx tx,value:uint64) =
-        let (DataSeries data) = DataSeries.single (Date dt,Tx tx,int64 value)
-        DataSetSeries data
-
-    /// Create a new DataSetSeries from an add set datum and DataSetSeries.
-    let add (Date newDate,Tx newTx,newValue:uint64) (DataSetSeries dataSeries) =
-        let (DataSeries data) = DataSeries.add (Date newDate,Tx newTx,int64 newValue)
-                                    (DataSeries dataSeries)
-        DataSetSeries data
+    /// Create a new datum from an add set datum.
+    let setAdd (date,tx,newValue:uint64) : Datum =
+        date,tx,int64 newValue
 
     /// Create a new DataSetSeries from a remove set datum and DataSetSeries.
-    let remove (Date newDate,Tx newTx,newValue:uint64) (DataSetSeries dataSeries) =
-        let (DataSeries data) = DataSeries.add (Date newDate, Tx newTx, ~~~(int64 newValue))
-                                    (DataSeries dataSeries)
-        DataSetSeries data
+    let setRemove (date,tx,newValue:uint64) : Datum =
+        date,tx,~~~(int64 newValue)
 
     /// Returns the closest data set from a DataSetSeries for a queryDate and query transaction.
-    let get (Date queryDate) (Tx queryTx) (DataSetSeries dataSeries) =
+    let setGet (Date queryDate) (Tx queryTx) (DataSeries dataSeries) =
         let currentDate,i = uint32Get (dataSeries,0)
         let currentTx,i = uint32Get (dataSeries,i)
         let currentValue,i = uint64Get (dataSeries,i) |> mapFst unzigzag64

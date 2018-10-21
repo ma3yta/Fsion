@@ -18,3 +18,5 @@ type Tx = Tx of uint32
 
 module Tx =
     let maxValue = Tx UInt32.MaxValue
+
+type Datum = Date * Tx * int64

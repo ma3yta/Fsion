@@ -6,6 +6,7 @@ let tests =
     testList null [
         SerializeTests.serializeTests
         SerializeTests.dataSeriesTests
+        DatabaseTests.databaseTests
     ]
 
 [<EntryPoint;STAThread>]
