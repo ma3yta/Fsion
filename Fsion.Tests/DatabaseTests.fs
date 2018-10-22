@@ -6,23 +6,24 @@ open FsCheck
 open Fsion
 
 let createDB() =
-    DataSeriesBase.createMemory()
+    DataSeriesCache.createMemory()
 
 let databaseTests =
     testList "database" [
         testAsync "simple" {
-            let db = createDB()
-            db.Set (Entity(EntityType 1,1), {Id = 1; IsSet = false }) [|1uy|]
-            let actual = db.Get (Entity(EntityType 1,1), {Id = 1; IsSet = false })
-            Expect.equal actual [|1uy|] "bytes 1"
+            let database = createDB()
+            let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
+            database.Set (Entity(EntityType 1,1), Attribute.time) dataSeries
+            let actual = database.Get (Entity(EntityType 1,1), Attribute.time)
+            Expect.equal actual dataSeries "bytes 1"
         }
         testAsync "ups" {
-            let db = createDB()
-            let (DataSeries ds) = DataSeries.single (Date 1u,Tx 1u,1L)
-            db.Set (Entity(EntityType 1,1), {Id = 1; IsSet = false }) ds
-            db.Ups (Entity(EntityType 1,1), {Id = 1; IsSet = false }) (Date 2u,Tx 2u,2L)
-            let actual = db.Get (Entity(EntityType 1,1), {Id = 1; IsSet = false })
-            let (DataSeries expected) = DataSeries.append (Date 2u,Tx 2u,2L) (DataSeries ds)
+            let database = createDB()
+            let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
+            database.Set (Entity(EntityType 1,1), Attribute.time) dataSeries
+            database.Ups (Entity(EntityType 1,1), Attribute.time) (Date 2u,Tx 2u,2L)
+            let actual = database.Get (Entity(EntityType 1,1), Attribute.time)
+            let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries
             Expect.equal actual expected "append"
         }
     ]

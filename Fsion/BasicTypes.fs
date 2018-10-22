@@ -11,12 +11,24 @@ type Date =
 
 module Date =
     let minValue = Date 0u
-    let fromDateTime (d:DateTime) = d.Ticks / TimeSpan.TicksPerDay |> uint32 |> Date
+    let maxValue = Date UInt32.MaxValue
+    let fromDateTime (d:DateTime) =
+        d.Ticks / TimeSpan.TicksPerDay |> uint32 |> Date
+
+[<Struct>]
+type Time =
+    | Time of int64
+
+module Time =
+    let toInt64 (Time ticks) =
+        ticks
+    let toDate (Time ticks) =
+        ticks / TimeSpan.TicksPerDay |> uint32 |> Date
 
 [<Struct>]
 type Tx = Tx of uint32
-
+    
 module Tx =
     let maxValue = Tx UInt32.MaxValue
-
+    
 type Datum = Date * Tx * int64
