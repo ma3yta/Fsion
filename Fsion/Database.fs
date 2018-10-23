@@ -8,9 +8,10 @@ open System.Diagnostics
 [<Struct>]
 type EntityType =
     | EntityType of int
-    static member entityType = EntityType 0
-    static member attribute = EntityType 1
-    static member transaction = EntityType 2
+    static member tx = EntityType 0
+    static member entityType = EntityType 1
+    static member attribute = EntityType 2
+    
 
 [<Struct>]
 type Entity =
@@ -47,7 +48,7 @@ type Attribute = {
             compare x.Id ((o :?> Attribute).Id)
         
 type DataSeriesCache =
-    abstract member Get : (Entity * Attribute) -> DataSeries
+    abstract member Get : (Entity * Attribute) -> DataSeries // now need to be option
     abstract member Set : (Entity * Attribute) -> DataSeries -> unit
     abstract member Ups : (Entity * Attribute) -> Datum -> unit
 
@@ -141,9 +142,8 @@ module TransationLog =
 type DataSeriesBase = private {
     DataSeries : DataSeriesCache
     StringCache : StringCache
-    mutable LatestTransactionId : uint32
-    IndexEntityAttribute : int array array array
-    IndexAttributeEntity : int array array array
+    mutable IndexEntityTypeCount : int array
+    mutable IndexEntityTypeAttribute : int [][]
 }
 
 module DataSeriesBase =
@@ -151,39 +151,25 @@ module DataSeriesBase =
         {
             DataSeries = DataSeriesCache.createMemory()
             StringCache = StringCache.createMemory()
-            LatestTransactionId = 0u
-            IndexEntityAttribute = [||]
-            IndexAttributeEntity = [||]
+            IndexEntityTypeCount = [|0;0;0|]
+            IndexEntityTypeAttribute = [||]
         }
 
     [<Literal>]
-    let private uriAttributeIndex = 0
+    let private txEntityTypeIndex = 0
     [<Literal>]
-    let private timeAttributeIndex = 1
-
-    let getEntityByUri (EntityType entityType) (uri:string)
-                       (dataSeriesBase:DataSeriesBase) =
-        let (StringId stringId) = dataSeriesBase.StringCache.Get uri
-        let i =
-            dataSeriesBase.IndexAttributeEntity.[entityType]
-            |> Array.findIndex (fun attributeArray ->
-                Array.contains uriAttributeIndex attributeArray &&
-                dataSeriesBase.DataSeries.Get
-                    (Entity(EntityType entityType,0), Attribute.uri)
-                |> DataSeries.get Date.maxValue
-                    (Tx dataSeriesBase.LatestTransactionId)
-                |> trd |> int |> (=) stringId
-            )
-        Entity(EntityType entityType, i)
+    let private entityTypeEntityTypeIndex = 1
 
     let transactionLock = obj()
 
     let setTransaction (txData: TxData) (time: Time) (db:DataSeriesBase) =
         lock transactionLock (fun () ->
             
-            let txId = db.LatestTransactionId + 1u
+            let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
             
-            let ups (entity,attributeList) =
+            let ups (Entity(EntityType etId,_) as entity,attributeList) =
+                let mutable attributeArray =
+                    db.IndexEntityTypeAttribute.[etId]
                 attributeList
                 |> List1.toList
                 |> Seq.iter (fun (attribute,date,value) ->
@@ -195,6 +181,10 @@ module DataSeriesBase =
                         else value
                     db.DataSeries.Ups (entity,attribute)
                         (date,Tx txId,value)
+                    if Array.contains attribute.Id attributeArray |> not then
+                        Array.Resize(&attributeArray, attributeArray.Length+1)
+                        attributeArray.[attributeArray.Length-1] <- attribute.Id
+                        db.IndexEntityTypeAttribute.[etId] <- attributeArray
                 )
             
             // Updates
@@ -205,19 +195,19 @@ module DataSeriesBase =
                 |> List1.init (Attribute.time,Time.toDate time,Time.toInt64 time)
 
             // Creates
-            [EntityType.transaction, headerList]
+            [EntityType.tx, headerList]
             |> Seq.append txData.Creates
             |> Seq.iter (fun (EntityType entityTypeId,attributeList) ->
-                let entitiesToAttributes =
-                    &db.IndexEntityAttribute.[entityTypeId]
-                let entityId = Array.length entitiesToAttributes
+                let entityId = db.IndexEntityTypeCount.[entityTypeId]
                 let entity = Entity(EntityType entityTypeId, entityId)
+                if entityTypeId = entityTypeEntityTypeIndex then
+                    let length = db.IndexEntityTypeCount.Length
+                    Array.Resize(&db.IndexEntityTypeCount, length+1)
+                    Array.Resize(&db.IndexEntityTypeAttribute, length+1)
+                    db.IndexEntityTypeAttribute.[length] <- [||]
                 ups (entity,attributeList)
-                Array.Resize(&entitiesToAttributes, entityId+1)
-                entitiesToAttributes.[entityId] <- [||]
+                db.IndexEntityTypeCount.[entityTypeId] <- entityId + 1
             )
-
-            // TODO: Update indexes
-
-            db.LatestTransactionId <- txId
+            
+            db.IndexEntityTypeCount.[txEntityTypeIndex] <- int32 txId + 1
         )
