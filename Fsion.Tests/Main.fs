@@ -11,4 +11,8 @@ let tests =
 
 [<EntryPoint;STAThread>]
 let main args =
-    runTestsWithArgs defaultConfig args tests
+    let writeResults =
+        TestResults.writeNUnitSummary
+            ("bin/Fsion.Tests.TestResults.xml", "Fsion.Tests")
+    let config = defaultConfig.appendSummaryHandler writeResults
+    runTestsWithArgs config args tests

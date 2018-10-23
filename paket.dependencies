@@ -5,3 +5,4 @@ storage:none
 nuget System.Buffers
 nuget Expecto
 nuget Expecto.FsCheck
+nuget Expecto.TestResults

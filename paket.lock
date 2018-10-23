@@ -13,6 +13,8 @@ NUGET
     Expecto.FsCheck (8.4.3)
       Expecto (>= 8.4.3)
       FsCheck (>= 2.10.4)
+    Expecto.TestResults (8.4.3)
+      Expecto (>= 8.4.3)
     FsCheck (2.12.1)
       FSharp.Core (>= 4.0.0.1) - restriction: || (== net461) (&& (== netcoreapp2.1) (>= net452)) (&& (== netcoreapp2.1) (< netstandard1.6)) (&& (== netcoreapp2.1) (< portable-net45+win8+wp8)) (&& (== netstandard2.0) (>= net452)) (&& (== netstandard2.0) (< netstandard1.6)) (&& (== netstandard2.0) (< portable-net45+win8+wp8))
       FSharp.Core (>= 4.5.2) - restriction: || (&& (== net461) (< net452) (>= netstandard1.6)) (== netcoreapp2.1) (== netstandard2.0)
