@@ -23,19 +23,24 @@ type Attribute = {
     Uri: string
     IsSet: bool
     IsString: bool
+    Doc: string
 } with
     static member uri = {
         Id = 0
         Uri = "uri"
-        IsSet = false
+        IsSet = true
         IsString = true
+        Doc = "Unique reference for an entity. Can be updated but the previous uris will continue to be other unique references to the entity."
     }
     static member time = {
         Id = 1
         Uri = "time"
         IsSet = false
         IsString = false
+        Doc = "Time the transaction was committed to the database."
     }
+    member x.Entity =
+        Entity(EntityType.attribute, x.Id)
     override x.GetHashCode() =
         x.Id
     override x.Equals o =
@@ -48,6 +53,7 @@ type Attribute = {
             compare x.Id ((o :?> Attribute).Id)
         
 type DataSeriesCache =
+    inherit IDisposable
     abstract member Get : (Entity * Attribute) -> DataSeries // now need to be option
     abstract member Set : (Entity * Attribute) -> DataSeries -> unit
     abstract member Ups : (Entity * Attribute) -> Datum -> unit
@@ -80,37 +86,46 @@ module DataSeriesCache =
                             DataSeries.single datum
                 finally
                     lock.ExitWriteLock()
+          interface IDisposable with
+            member __.Dispose() =
+                lock.Dispose()
         }
 
-type StringId = StringId of int
+type TextId =
+    internal
+    | TextId of int
 
-type StringCache =
-    abstract member Get : StringId -> string
-    abstract member Get : string -> StringId
+type TextCache =
+    inherit IDisposable
+    abstract member GetId : Text -> TextId
+    abstract member GetText : TextId -> Text
 
-module StringCache =
+module TextCache =
     let createMemory() =
-        let dictionary = Dictionary<string, int>()
-        let strings = List<string>();
+        let dictionary = Dictionary StringComparer.Ordinal
+        let strings = List()
         let lock = new ReaderWriterLockSlim()
-        { new StringCache with
-            member __.Get (StringId i) =
+        { new TextCache with
+            member __.GetText (TextId i) =
                 lock.EnterReadLock()
                 try
-                    strings.[i]
+                    Text strings.[i]
                 finally
-                    lock.ExitWriteLock()
-            member __.Get (s:string) =
+                    lock.ExitReadLock()
+            member __.GetId (Text s) =
                 lock.EnterWriteLock()
                 try
                     let mutable i = 0
-                    if dictionary.TryGetValue(s, &i) then StringId i
+                    if dictionary.TryGetValue(s, &i) then TextId i
                     else
                         i <- strings.Count
-                        strings.Add(s)
-                        StringId i
+                        dictionary.Add(s,i)
+                        strings.Add s
+                        TextId i
                 finally
                     lock.ExitWriteLock()
+          interface IDisposable with
+            member __.Dispose() = lock.Dispose()
         }
 
 type TxData = {
@@ -141,7 +156,7 @@ module TransationLog =
 
 type DataSeriesBase = private {
     DataSeries : DataSeriesCache
-    StringCache : StringCache
+    TextCache : TextCache
     mutable IndexEntityTypeCount : int array
     mutable IndexEntityTypeAttribute : int [][]
 }
@@ -150,9 +165,9 @@ module DataSeriesBase =
     let createMemory() =
         {
             DataSeries = DataSeriesCache.createMemory()
-            StringCache = StringCache.createMemory()
+            TextCache = TextCache.createMemory()
             IndexEntityTypeCount = [|0;0;0|]
-            IndexEntityTypeAttribute = [||]
+            IndexEntityTypeAttribute = [|[||];[||];[||]|]
         }
 
     [<Literal>]
@@ -160,7 +175,7 @@ module DataSeriesBase =
     [<Literal>]
     let private entityTypeEntityTypeIndex = 1
 
-    let transactionLock = obj()
+    let private transactionLock = obj()
 
     let setTransaction (txData: TxData) (time: Time) (db:DataSeriesBase) =
         lock transactionLock (fun () ->
@@ -175,8 +190,9 @@ module DataSeriesBase =
                 |> Seq.iter (fun (attribute,date,value) ->
                     let value =
                         if attribute.IsString then
-                            let (StringId sid) =
-                                db.StringCache.Get txData.Strings.[int value]
+                            let (TextId sid) =
+                                Text.ofString txData.Strings.[int value]
+                                |> db.TextCache.GetId 
                             int64 sid
                         else value
                     db.DataSeries.Ups (entity,attribute)

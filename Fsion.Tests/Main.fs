@@ -4,9 +4,12 @@ open System
 open Expecto
 let tests =
     testList null [
+        BasicTypesTests.basicTypesTests
         SerializeTests.serializeTests
         SerializeTests.dataSeriesTests
-        DatabaseTests.databaseTests
+        DatabaseTests.dataSeriesTests
+        DatabaseTests.textCacheTests
+        DatabaseTests.dataSeriesBaseTests
     ]
 
 [<EntryPoint;STAThread>]

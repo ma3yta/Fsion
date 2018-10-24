@@ -3,6 +3,17 @@
 open System
 
 [<Struct>]
+type Text =
+    private
+    | Text of string
+
+module Text =
+    let ofString s =
+        if String.IsNullOrWhiteSpace s then Text String.Empty
+        else Text (s.Trim())
+    let toString (Text s) = s
+
+[<Struct>]
 type Date =
     | Date of uint32
     static member (-) (Date a, Date b) = int(a - b)
