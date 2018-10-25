@@ -7,9 +7,8 @@ let tests =
         BasicTypesTests.basicTypesTests
         SerializeTests.serializeTests
         SerializeTests.dataSeriesTests
-        DatabaseTests.dataSeriesTests
-        DatabaseTests.textCacheTests
-        DatabaseTests.dataSeriesBaseTests
+        DatabaseTests.dataCacheTests
+        DatabaseTests.databaseTests
     ]
 
 [<EntryPoint;STAThread>]

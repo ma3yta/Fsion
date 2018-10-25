@@ -2,8 +2,8 @@
 
 open System
 open System.Threading
-open System.Collections.Generic
 open System.Diagnostics
+open System.Collections.Generic
 
 [<Struct>]
 type EntityType =
@@ -11,7 +11,6 @@ type EntityType =
     static member tx = EntityType 0
     static member entityType = EntityType 1
     static member attribute = EntityType 2
-    
 
 [<Struct>]
 type Entity =
@@ -51,81 +50,93 @@ type Attribute = {
     interface IComparable with
         member x.CompareTo o =
             compare x.Id ((o :?> Attribute).Id)
-        
-type DataSeriesCache =
-    inherit IDisposable
-    abstract member Get : (Entity * Attribute) -> DataSeries // now need to be option
-    abstract member Set : (Entity * Attribute) -> DataSeries -> unit
-    abstract member Ups : (Entity * Attribute) -> Datum -> unit
-
-module DataSeriesCache =
-    let createMemory() =
-        let dictionary = Dictionary<Entity * Attribute, DataSeries>()
-        let lock = new ReaderWriterLockSlim()
-        { new DataSeriesCache with
-            member __.Get entityAttribute =
-                try
-                    lock.EnterReadLock()
-                    dictionary.[entityAttribute]
-                finally
-                    lock.ExitReadLock()
-            member __.Set entityAttribute dataSeries =
-                try
-                    lock.EnterWriteLock()
-                    dictionary.[entityAttribute] <- dataSeries
-                finally
-                    lock.ExitWriteLock()
-            member __.Ups entityAttribute datum =
-                try
-                    lock.EnterWriteLock()
-                    dictionary.[entityAttribute] <-
-                        match dictionary.TryGetValue entityAttribute with
-                        | true, dataSeries ->
-                            DataSeries.append datum dataSeries
-                        | false, _ ->
-                            DataSeries.single datum
-                finally
-                    lock.ExitWriteLock()
-          interface IDisposable with
-            member __.Dispose() =
-                lock.Dispose()
-        }
 
 type TextId =
     internal
     | TextId of int
 
-type TextCache =
-    inherit IDisposable
-    abstract member GetId : Text -> TextId
-    abstract member GetText : TextId -> Text
+type DataId =
+    internal
+    | DataId of int
 
-module TextCache =
+type DataCache =
+    inherit IDisposable
+    abstract member Get : (Entity * Attribute) -> DataSeries // now need to be option
+    abstract member Set : (Entity * Attribute) -> DataSeries -> unit
+    abstract member Ups : (Entity * Attribute) -> Datum -> unit
+    abstract member GetTextId : Text -> TextId
+    abstract member GetText : TextId -> Text
+    abstract member GetDataId : byte[] -> DataId
+    abstract member GetData : DataId -> byte[]
+
+module DataCache =
     let createMemory() =
-        let dictionary = Dictionary StringComparer.Ordinal
+        let dataSeriesDictionary = Dictionary<Entity * Attribute, DataSeries>()
+        let dataSeriesLock = new ReaderWriterLockSlim()
+        let stringDictionary = Dictionary StringComparer.Ordinal
         let strings = List()
-        let lock = new ReaderWriterLockSlim()
-        { new TextCache with
+        let stringLock = new ReaderWriterLockSlim()
+        let data = List()
+        let dataLock = new ReaderWriterLockSlim()
+        { new DataCache with
+            member __.Get entityAttribute =
+                try
+                    dataSeriesLock.EnterReadLock()
+                    dataSeriesDictionary.[entityAttribute]
+                finally
+                    dataSeriesLock.ExitReadLock()
+            member __.Set entityAttribute dataSeries =
+                try
+                    dataSeriesLock.EnterWriteLock()
+                    dataSeriesDictionary.[entityAttribute] <- dataSeries
+                finally
+                    dataSeriesLock.ExitWriteLock()
+            member __.Ups entityAttribute datum =
+                try
+                    dataSeriesLock.EnterWriteLock()
+                    dataSeriesDictionary.[entityAttribute] <-
+                        match dataSeriesDictionary.TryGetValue entityAttribute with
+                        | true, dataSeries ->
+                            DataSeries.append datum dataSeries
+                        | false, _ ->
+                            DataSeries.single datum
+                finally
+                    dataSeriesLock.ExitWriteLock()
             member __.GetText (TextId i) =
-                lock.EnterReadLock()
+                stringLock.EnterReadLock()
                 try
                     Text strings.[i]
                 finally
-                    lock.ExitReadLock()
-            member __.GetId (Text s) =
-                lock.EnterWriteLock()
+                    stringLock.ExitReadLock()
+            member __.GetTextId (Text s) =
+                stringLock.EnterWriteLock()
                 try
                     let mutable i = 0
-                    if dictionary.TryGetValue(s, &i) then TextId i
+                    if stringDictionary.TryGetValue(s, &i) then TextId i
                     else
                         i <- strings.Count
-                        dictionary.Add(s,i)
+                        stringDictionary.Add(s,i)
                         strings.Add s
                         TextId i
                 finally
-                    lock.ExitWriteLock()
+                    stringLock.ExitWriteLock()
+            member __.GetData (DataId i) =
+                dataLock.EnterReadLock()
+                try
+                    data.[i]
+                finally
+                    dataLock.ExitReadLock()
+            member __.GetDataId bs =
+                dataLock.EnterWriteLock()
+                try
+                    let i = data.Count
+                    data.Add bs
+                    DataId i
+                finally
+                    dataLock.ExitWriteLock()
           interface IDisposable with
-            member __.Dispose() = lock.Dispose()
+            member __.Dispose() =
+                dataSeriesLock.Dispose()
         }
 
 type TxData = {
@@ -154,18 +165,16 @@ module TransationLog =
                 dictionary.[tx]
         }
 
-type DataSeriesBase = private {
-    DataSeries : DataSeriesCache
-    TextCache : TextCache
+type Database = private {
+    DataCache : DataCache
     mutable IndexEntityTypeCount : int array
     mutable IndexEntityTypeAttribute : int [][]
 }
 
-module DataSeriesBase =
+module Database =
     let createMemory() =
         {
-            DataSeries = DataSeriesCache.createMemory()
-            TextCache = TextCache.createMemory()
+            DataCache = DataCache.createMemory()
             IndexEntityTypeCount = [|0;0;0|]
             IndexEntityTypeAttribute = [|[||];[||];[||]|]
         }
@@ -177,7 +186,7 @@ module DataSeriesBase =
 
     let private transactionLock = obj()
 
-    let setTransaction (txData: TxData) (time: Time) (db:DataSeriesBase) =
+    let setTransaction (txData: TxData) (time: Time) (db:Database) =
         lock transactionLock (fun () ->
             
             let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
@@ -192,10 +201,10 @@ module DataSeriesBase =
                         if attribute.IsString then
                             let (TextId sid) =
                                 Text.ofString txData.Strings.[int value]
-                                |> db.TextCache.GetId 
+                                |> db.DataCache.GetTextId
                             int64 sid
                         else value
-                    db.DataSeries.Ups (entity,attribute)
+                    db.DataCache.Ups (entity,attribute)
                         (date,Tx txId,value)
                     if Array.contains attribute.Id attributeArray |> not then
                         Array.Resize(&attributeArray, attributeArray.Length+1)
