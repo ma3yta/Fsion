@@ -4,6 +4,7 @@ open System
 open System.Threading
 open System.Diagnostics
 open System.Collections.Generic
+open System.Threading.Tasks
 
 [<Struct>]
 type EntityType =
@@ -61,13 +62,17 @@ type DataId =
 
 type DataCache =
     inherit IDisposable
-    abstract member Get : (Entity * Attribute) -> DataSeries // now need to be option
+    abstract member Get : (Entity * Attribute) -> DataSeries option
     abstract member Set : (Entity * Attribute) -> DataSeries -> unit
     abstract member Ups : (Entity * Attribute) -> Datum -> unit
     abstract member GetTextId : Text -> TextId
     abstract member GetText : TextId -> Text
     abstract member GetDataId : byte[] -> DataId
     abstract member GetData : DataId -> byte[]
+    abstract member SnapshotList : unit -> int[]
+    abstract member SnapshotSave : int -> unit
+    abstract member SnapshotLoad : int -> unit
+    abstract member SnapshotDelete : int -> unit
 
 module DataCache =
     let createMemory() =
@@ -82,7 +87,9 @@ module DataCache =
             member __.Get entityAttribute =
                 try
                     dataSeriesLock.EnterReadLock()
-                    dataSeriesDictionary.[entityAttribute]
+                    match dataSeriesDictionary.TryGetValue entityAttribute with
+                    | true, ds -> Some ds
+                    | false, _ -> None
                 finally
                     dataSeriesLock.ExitReadLock()
             member __.Set entityAttribute dataSeries =
@@ -134,6 +141,14 @@ module DataCache =
                     DataId i
                 finally
                     dataLock.ExitWriteLock()
+            member __.SnapshotList() : int[] =
+                invalidOp "not implemented"
+            member __.SnapshotSave txId =
+                invalidOp "not implemented"
+            member __.SnapshotLoad txId =
+                invalidOp "not implemented"
+            member __.SnapshotDelete txId =
+                invalidOp "not implemented"
           interface IDisposable with
             member __.Dispose() =
                 dataSeriesLock.Dispose()
@@ -147,23 +162,26 @@ type TxData = {
 }
 
 type TransactionLog =
-    abstract member Set : Tx -> TxData -> unit
-    abstract member Get : Tx -> TxData
+    abstract member Set : Tx -> TxData -> Result<unit,exn>
+    abstract member Get : Tx -> Task<TxData> seq
 
 module TransationLog =
     let createNull() =
         { new TransactionLog with
-            member __.Set tx bytes = ()
-            member __.Get tx = invalidOp "null log"
-        }
-    let createMemory() =
-        let dictionary = Dictionary<Tx,TxData>()
-        { new TransactionLog with
             member __.Set tx bytes =
-                dictionary.[tx] <- bytes
+                Ok ()
             member __.Get tx =
-                dictionary.[tx]
+                invalidOp "null log"
         }
+    let createLocal path =
+        { new TransactionLog with
+            member __.Set (Tx txId) txData =
+                let filename = System.IO.Path.Combine(path, (txId.ToString()))
+                invalidOp "not implemented"
+            member __.Get tx =
+                invalidOp "not implemented"
+        }
+
 
 type Database = private {
     DataCache : DataCache
