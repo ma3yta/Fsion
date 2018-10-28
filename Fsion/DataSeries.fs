@@ -388,37 +388,98 @@ module internal DataSeries =
     
 
 module StreamSerialize =
-    open ArraySerialize
-
     
-    let textListSet (l:Text ResizeArray) (s:Stream) =
-        let bs,i = uint32Set (uint32 l.Count) empty
+    let rec private read (s:Stream) bs offset count =
+        let bytesRead = s.Read(bs, offset, count)
+        if bytesRead<>count then read s bs (offset+bytesRead) (count-bytesRead)
+
+    let uint32Set u (s:Stream) =
+        let bs,i = ArraySerialize.uint32Set u ArraySerialize.empty
         s.Write(bs, 0, i)
-        arrayPool.Return bs
-        Seq.iter (fun t ->
-            let bs,i = textSet t empty
-            s.Write(bs, 0, i)
-            arrayPool.Return bs
-        ) l
+        ArraySerialize.arrayPool.Return bs
+
+    let uint32Get (s:Stream) =
+        let rec read x =
+            let b = s.ReadByte()
+            if b < 128 then x+uint32 b
+            else read (x + uint32(byte b &&& 127uy) <<< 7)
+        read 0u
+    
+    let textSet (s:Stream) t =
+        let bs,i = ArraySerialize.textSet t ArraySerialize.empty
+        s.Write(bs, 0, i)
+        ArraySerialize.arrayPool.Return bs
+
+    let textGet (s:Stream) =
+        let l = uint32Get s |> int
+        let bs = ArraySerialize.arrayPool.Rent l
+        read s bs 0 l
+        let t = System.Text.UTF8Encoding.UTF8.GetString(bs, 0, l) |> Text
+        ArraySerialize.arrayPool.Return bs
+        t
+
+    let textListSet (l:Text ResizeArray) (s:Stream) =
+        uint32Set (uint32 l.Count) s
+        Seq.iter (textSet s) l
+
+    let textListLoad (s:Stream) (a:Text ResizeArray) =
+        let l = uint32Get s |> int
+        a.Clear()
+        for i = 0 to l-1 do
+            a.[i] <- textGet s
+
+    let bytesSet (s:Stream) bs =
+        uint32Set (Array.length bs |> uint32) s
+        s.Write(bs, 0, bs.Length)
+
+    let bytesGet (s:Stream) =
+        let l = uint32Get s |> int
+        let bs = Array.zeroCreate l
+        read s bs 0 l
+        bs
 
     let byteListSet (l:byte[] ResizeArray) (s:Stream) =
-        let bs,i = uint32Set (uint32 l.Count) empty
-        s.Write(bs, 0, i)
-        arrayPool.Return bs
-        Seq.iter (fun bytes ->
-            s.Write(bytes, 0, bytes.Length)
-        ) l
+        uint32Set (uint32 l.Count) s
+        Seq.iter (bytesSet s) l
+
+    let byteListLoad (s:Stream) (a:byte[] ResizeArray) =
+        let l = uint32Get s |> int
+        a.Clear()
+        for i = 0 to l-1 do
+            a.[i] <- bytesGet s
+
+    let entityTypeGet (s:Stream) =
+        s.ReadByte() |> byte |> EntityType
     
-    let dataSeriesDictionarySet (dictionary:Dictionary<Entity * Attribute, DataSeries>) (s:Stream) =
-        let bs,i = uint32Set (uint32 dictionary.Count) empty
+    let entityGet (s:Stream) =
+        let et = entityTypeGet s
+        let eid = uint32Get s
+        Entity(et,eid)
+
+    let attributeGet (getAttribute:uint32->Attribute) (s:Stream) =
+        let eid = uint32Get s
+        getAttribute eid
+
+    let entityAttributeSet ((entity,attribute):Entity * Attribute) (s:Stream) =
+        let bs,i =
+            ArraySerialize.entitySet entity ArraySerialize.empty
+            |> ArraySerialize.attributeSet attribute
         s.Write(bs, 0, i)
-        arrayPool.Return bs
+        ArraySerialize.arrayPool.Return bs
+
+    let entityAttributeGet (getAttribute:uint32->Attribute) (s:Stream) =
+        entityGet s, attributeGet getAttribute s
+
+    let dataSeriesDictionarySet (dictionary:Dictionary<_,_>) (s:Stream) =
+        uint32Set (uint32 dictionary.Count) s
         dictionary |> Seq.iter (fun kv ->
-            let bs,i =
-                entitySet (fst kv.Key) empty
-                |> attributeSet (snd kv.Key)
-            s.Write(bs, 0, i)
-            arrayPool.Return bs
+            entityAttributeSet kv.Key s
             let (DataSeries bytes) = kv.Value
-            s.Write(bytes, 0, bytes.Length)
+            bytesSet s bytes
         )
+
+    let dataSeriesDictionaryLoad (getAttribute:uint32->Attribute) (d:Dictionary<_,_>) (s:Stream) =
+        let l = uint32Get s |> int
+        d.Clear()
+        for i = 0 to l-1 do
+            d.Add(entityAttributeGet getAttribute s, bytesGet s |> DataSeries)

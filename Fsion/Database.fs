@@ -33,22 +33,22 @@ module DataCache =
         let byteLock = new ReaderWriterLockSlim()
         { new DataCache with
             member __.Get entityAttribute =
+                dataSeriesLock.EnterReadLock()
                 try
-                    dataSeriesLock.EnterReadLock()
                     match dataSeriesDictionary.TryGetValue entityAttribute with
                     | true, ds -> Some ds
                     | false, _ -> None
                 finally
                     dataSeriesLock.ExitReadLock()
             member __.Set entityAttribute dataSeries =
+                dataSeriesLock.EnterWriteLock()
                 try
-                    dataSeriesLock.EnterWriteLock()
                     dataSeriesDictionary.[entityAttribute] <- dataSeries
                 finally
                     dataSeriesLock.ExitWriteLock()
             member __.Ups entityAttribute datum =
+                dataSeriesLock.EnterWriteLock()
                 try
-                    dataSeriesLock.EnterWriteLock()
                     dataSeriesDictionary.[entityAttribute] <-
                         match dataSeriesDictionary.TryGetValue entityAttribute with
                         | true, dataSeries ->
@@ -99,7 +99,9 @@ module DataCache =
                     )
                 )
             member __.SnapshotSave txId =
+                dataSeriesLock.EnterReadLock()
                 textLock.EnterReadLock()
+                byteLock.EnterReadLock()
                 try
                     try
                         use fs =
@@ -111,9 +113,25 @@ module DataCache =
                         Ok ()
                     with e -> Error e
                 finally
+                    byteLock.ExitReadLock()
                     textLock.ExitReadLock()
+                    dataSeriesLock.ExitReadLock()
             member __.SnapshotLoad txId =
-                invalidOp "not implemented"
+                dataSeriesLock.EnterWriteLock()
+                textLock.EnterWriteLock()
+                byteLock.EnterWriteLock()
+                try
+                    use fs =
+                        let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                        new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
+                    StreamSerialize.dataSeriesDictionaryLoad (failwith "hmmm") dataSeriesDictionary fs
+                    StreamSerialize.textListLoad fs texts
+                    StreamSerialize.byteListLoad fs bytes
+                    Ok ()
+                finally
+                    byteLock.ExitWriteLock()
+                    textLock.ExitWriteLock()
+                    dataSeriesLock.ExitWriteLock()
             member __.SnapshotDelete txId =
                 try
                     Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
