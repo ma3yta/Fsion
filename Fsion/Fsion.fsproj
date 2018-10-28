@@ -13,7 +13,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Prelude.fs" />
-    <Compile Include="BasicTypes.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="DataSeries.fs" />
     <Compile Include="Database.fs" />
   </ItemGroup>

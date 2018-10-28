@@ -4,9 +4,9 @@ open System
 open Expecto
 let tests =
     testList null [
-        BasicTypesTests.basicTypesTests
-        SerializeTests.serializeTests
-        SerializeTests.dataSeriesTests
+        TypesTests.basicTypesTests
+        ArraySerializeTests.serializeTests
+        ArraySerializeTests.dataSeriesTests
         DatabaseTests.dataCacheTests
         DatabaseTests.databaseTests
     ]

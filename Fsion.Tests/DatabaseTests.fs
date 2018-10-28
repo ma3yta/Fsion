@@ -10,16 +10,16 @@ let dataCacheTestList (cache:DataCache) = [
 
             testAsync "set get" {
                 let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                cache.Set (Entity(EntityType.attribute,1), Attribute.time) dataSeries
-                let actual = cache.Get (Entity(EntityType.attribute,1), Attribute.time)
+                cache.Set (Entity(EntityType.attribute,1u), Attribute.time) dataSeries
+                let actual = cache.Get (Entity(EntityType.attribute,1u), Attribute.time)
                 Expect.equal actual (Some dataSeries) "bytes 1"
             }
 
             testAsync "ups" {
                 let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                cache.Set (Entity(EntityType.attribute,2), Attribute.time) dataSeries
-                cache.Ups (Entity(EntityType.attribute,2), Attribute.time) (Date 2u,Tx 2u,2L)
-                let actual = cache.Get (Entity(EntityType.attribute,2), Attribute.time)
+                cache.Set (Entity(EntityType.attribute,2u), Attribute.time) dataSeries
+                cache.Ups (Entity(EntityType.attribute,2u), Attribute.time) (Date 2u,Tx 2u,2L)
+                let actual = cache.Get (Entity(EntityType.attribute,2u), Attribute.time)
                 let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries |> Some
                 Expect.equal actual expected "append"
             }
@@ -77,7 +77,7 @@ let dataCacheTestList (cache:DataCache) = [
     ]
 
 let dataCacheTests =
-    DataCache.createMemory()
+    DataCache.createMemory "."
     |> dataCacheTestList
     |> testList "dataCache memory"
 
@@ -115,6 +115,6 @@ let databaseTestList (db:Database) = [
 ]
 
 let databaseTests =
-    Database.createMemory()
+    Database.createMemory "."
     |> databaseTestList
     |> testList "dataSeriesBase memory"

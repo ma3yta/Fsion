@@ -2,63 +2,9 @@
 
 open System
 open System.Threading
-open System.Diagnostics
 open System.Collections.Generic
 open System.Threading.Tasks
-
-[<Struct>]
-type EntityType =
-    | EntityType of int
-    static member tx = EntityType 0
-    static member entityType = EntityType 1
-    static member attribute = EntityType 2
-
-[<Struct>]
-type Entity =
-    | Entity of EntityType * int
-
-[<CustomEquality;CustomComparison;DebuggerDisplay("{Uri}")>]
-type Attribute = {
-    Id: int
-    Uri: string
-    IsSet: bool
-    IsString: bool
-    Doc: string
-} with
-    static member uri = {
-        Id = 0
-        Uri = "uri"
-        IsSet = true
-        IsString = true
-        Doc = "Unique reference for an entity. Can be updated but the previous uris will continue to be other unique references to the entity."
-    }
-    static member time = {
-        Id = 1
-        Uri = "time"
-        IsSet = false
-        IsString = false
-        Doc = "Time the transaction was committed to the database."
-    }
-    member x.Entity =
-        Entity(EntityType.attribute, x.Id)
-    override x.GetHashCode() =
-        x.Id
-    override x.Equals o =
-        x.Id = (o :?> Attribute).Id
-    interface IEquatable<Attribute> with
-        member x.Equals(o:Attribute) =
-            x.Id = o.Id
-    interface IComparable with
-        member x.CompareTo o =
-            compare x.Id ((o :?> Attribute).Id)
-
-type TextId =
-    internal
-    | TextId of int
-
-type DataId =
-    internal
-    | DataId of int
+open Fsion
 
 type DataCache =
     inherit IDisposable
@@ -69,20 +15,22 @@ type DataCache =
     abstract member GetText : TextId -> Text
     abstract member GetDataId : byte[] -> DataId
     abstract member GetData : DataId -> byte[]
-    abstract member SnapshotList : unit -> int[]
-    abstract member SnapshotSave : int -> unit
-    abstract member SnapshotLoad : int -> unit
-    abstract member SnapshotDelete : int -> unit
+    abstract member SnapshotList : unit -> Result<int[],exn>
+    abstract member SnapshotSave : int -> Result<unit,exn>
+    abstract member SnapshotLoad : int -> Result<unit,exn>
+    abstract member SnapshotDelete : int -> Result<unit,exn>
 
 module DataCache =
-    let createMemory() =
+    open System.IO
+
+    let createMemory (snapshotPath:string) =
         let dataSeriesDictionary = Dictionary<Entity * Attribute, DataSeries>()
         let dataSeriesLock = new ReaderWriterLockSlim()
         let stringDictionary = Dictionary StringComparer.Ordinal
-        let strings = List()
-        let stringLock = new ReaderWriterLockSlim()
-        let data = List()
-        let dataLock = new ReaderWriterLockSlim()
+        let texts = ResizeArray()
+        let textLock = new ReaderWriterLockSlim()
+        let bytes = ResizeArray()
+        let byteLock = new ReaderWriterLockSlim()
         { new DataCache with
             member __.Get entityAttribute =
                 try
@@ -110,45 +58,67 @@ module DataCache =
                 finally
                     dataSeriesLock.ExitWriteLock()
             member __.GetText (TextId i) =
-                stringLock.EnterReadLock()
+                textLock.EnterReadLock()
                 try
-                    Text strings.[i]
+                    texts.[i]
                 finally
-                    stringLock.ExitReadLock()
+                    textLock.ExitReadLock()
             member __.GetTextId (Text s) =
-                stringLock.EnterWriteLock()
+                textLock.EnterWriteLock()
                 try
                     let mutable i = 0
                     if stringDictionary.TryGetValue(s, &i) then TextId i
                     else
-                        i <- strings.Count
+                        i <- texts.Count
                         stringDictionary.Add(s,i)
-                        strings.Add s
+                        texts.Add (Text s)
                         TextId i
                 finally
-                    stringLock.ExitWriteLock()
+                    textLock.ExitWriteLock()
             member __.GetData (DataId i) =
-                dataLock.EnterReadLock()
+                byteLock.EnterReadLock()
                 try
-                    data.[i]
+                    bytes.[i]
                 finally
-                    dataLock.ExitReadLock()
+                    byteLock.ExitReadLock()
             member __.GetDataId bs =
-                dataLock.EnterWriteLock()
+                byteLock.EnterWriteLock()
                 try
-                    let i = data.Count
-                    data.Add bs
+                    let i = bytes.Count
+                    bytes.Add bs
                     DataId i
                 finally
-                    dataLock.ExitWriteLock()
-            member __.SnapshotList() : int[] =
-                invalidOp "not implemented"
+                    byteLock.ExitWriteLock()
+            member __.SnapshotList() =
+                File.list snapshotPath "*.fsp"
+                |> Result.map (Array.choose (fun f ->
+                        let n = Path.GetFileNameWithoutExtension f
+                        match Int32.TryParse n with
+                        | true, i -> Some i
+                        | false, _ -> None
+                    )
+                )
             member __.SnapshotSave txId =
-                invalidOp "not implemented"
+                textLock.EnterReadLock()
+                try
+                    try
+                        use fs =
+                            Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                            |> File.Create
+                        StreamSerialize.dataSeriesDictionarySet dataSeriesDictionary fs
+                        StreamSerialize.textListSet texts fs
+                        StreamSerialize.byteListSet bytes fs
+                        Ok ()
+                    with e -> Error e
+                finally
+                    textLock.ExitReadLock()
             member __.SnapshotLoad txId =
                 invalidOp "not implemented"
             member __.SnapshotDelete txId =
-                invalidOp "not implemented"
+                try
+                    Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                    |> File.Delete |> Ok
+                with e -> Error e
           interface IDisposable with
             member __.Dispose() =
                 dataSeriesLock.Dispose()
@@ -185,15 +155,15 @@ module TransationLog =
 
 type Database = private {
     DataCache : DataCache
-    mutable IndexEntityTypeCount : int array
-    mutable IndexEntityTypeAttribute : int [][]
+    mutable IndexEntityTypeCount : uint32 array
+    mutable IndexEntityTypeAttribute : uint32 [][]
 }
 
 module Database =
-    let createMemory() =
+    let createMemory snapshotPath =
         {
-            DataCache = DataCache.createMemory()
-            IndexEntityTypeCount = [|0;0;0|]
+            DataCache = DataCache.createMemory snapshotPath
+            IndexEntityTypeCount = [|0u;0u;0u|]
             IndexEntityTypeAttribute = [|[||];[||];[||]|]
         }
 
@@ -211,7 +181,7 @@ module Database =
             
             let ups (Entity(EntityType etId,_) as entity,attributeList) =
                 let mutable attributeArray =
-                    db.IndexEntityTypeAttribute.[etId]
+                    db.IndexEntityTypeAttribute.[int etId]
                 attributeList
                 |> List1.toList
                 |> Seq.iter (fun (attribute,date,value) ->
@@ -227,7 +197,7 @@ module Database =
                     if Array.contains attribute.Id attributeArray |> not then
                         Array.Resize(&attributeArray, attributeArray.Length+1)
                         attributeArray.[attributeArray.Length-1] <- attribute.Id
-                        db.IndexEntityTypeAttribute.[etId] <- attributeArray
+                        db.IndexEntityTypeAttribute.[int etId] <- attributeArray
                 )
             
             // Updates
@@ -241,16 +211,16 @@ module Database =
             [EntityType.tx, headerList]
             |> Seq.append txData.Creates
             |> Seq.iter (fun (EntityType entityTypeId,attributeList) ->
-                let entityId = db.IndexEntityTypeCount.[entityTypeId]
-                let entity = Entity(EntityType entityTypeId, entityId)
-                if entityTypeId = entityTypeEntityTypeIndex then
+                let entityId = db.IndexEntityTypeCount.[int entityTypeId]
+                let entity = Entity(EntityType entityTypeId, uint32 entityId)
+                if int entityTypeId = entityTypeEntityTypeIndex then
                     let length = db.IndexEntityTypeCount.Length
                     Array.Resize(&db.IndexEntityTypeCount, length+1)
                     Array.Resize(&db.IndexEntityTypeAttribute, length+1)
                     db.IndexEntityTypeAttribute.[length] <- [||]
                 ups (entity,attributeList)
-                db.IndexEntityTypeCount.[entityTypeId] <- entityId + 1
+                db.IndexEntityTypeCount.[int entityTypeId] <- entityId + 1u
             )
             
-            db.IndexEntityTypeCount.[txEntityTypeIndex] <- int32 txId + 1
+            db.IndexEntityTypeCount.[txEntityTypeIndex] <- txId + 1u
         )

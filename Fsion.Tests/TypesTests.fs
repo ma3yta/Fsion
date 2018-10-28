@@ -1,4 +1,4 @@
-﻿module Fsion.Tests.BasicTypesTests
+﻿module Fsion.Tests.TypesTests
 
 open System
 open Expecto
@@ -6,7 +6,7 @@ open Fsion
 
 let basicTypesTests =
 
-    testList "basicTypes" [
+    testList "types" [
         
         testList "text" [
         

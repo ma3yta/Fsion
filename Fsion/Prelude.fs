@@ -31,21 +31,27 @@ module List1 =
         List.choose mapping list |> List.collect toList |> tryOfList
     let append (List1 l1) (List1 l2) = List1(l1@l2)
 
-module File =
+module internal File =
     open System.IO
 
-    let getAll (path:string) includeSubdirectories =
+    let list (path:string) (pattern:string) =
         try
-            let dirs = if includeSubdirectories then SearchOption.AllDirectories else SearchOption.TopDirectoryOnly
-            Directory.GetFiles(path,"*",dirs) |> Ok
-        with | e -> Error e
+            Directory.GetFiles(path, pattern,
+                SearchOption.TopDirectoryOnly) |> Ok
+        with e -> Error e
+
+    let listAllDirectories (path:string) (pattern:string) =
+        try
+            Directory.GetFiles(path, pattern,
+                SearchOption.AllDirectories) |> Ok
+        with e -> Error e
 
     let saveBytes filename bytes length =
         try
             use fs = File.Create filename
             fs.Write (bytes, 0, length)
             Ok ()
-        with | e -> Error e
+        with e -> Error e
 
     let loadBytes filename =
         try
@@ -56,4 +62,4 @@ module File =
                 else load bs (i+j) (l-j)
             let l = int fs.Length
             load (Array.zeroCreate l) 0 l |> Ok
-        with | e -> Error e
+        with e -> Error e

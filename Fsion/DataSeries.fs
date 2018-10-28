@@ -1,10 +1,12 @@
 ﻿namespace Fsion
 
 open System
+open System.IO
 open System.Buffers
+open Fsion
 
-module internal Serialize =
-
+module internal ArraySerialize =
+ 
     let zigzag i = (i <<< 1) ^^^ (i >>> 31) |> uint32
     let unzigzag i = int(i >>> 1) ^^^ -int(i &&& 1u)
     let zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
@@ -206,13 +208,53 @@ module internal Serialize =
             else read (i+1) (x + uint64(b &&& 127uy) <<< 7)
         read i 0uL
 
-open System.Collections.Generic
+    let textSet (Text s) (bs,i) =
+        let b = System.Text.UTF8Encoding.UTF8.GetBytes s
+        let l = Array.length b
+        let bs,i = uint32Set (uint32 l) (bs,i)
+        let bs = resizeUp bs (i+l)
+        Buffer.BlockCopy(b, 0, bs, i, l)
+        bs,i+l
+        
+    let textGet (bs,i) =
+        let l,i = uint32Get (bs,i)
+        let l = int l
+        System.Text.UTF8Encoding.UTF8.GetString(bs, i, l) |> Text,i+l
+
+    let entityTypeSet (EntityType b) (bs,i) =
+        let bs = resizeUp bs (i+1)
+        bs.[i] <- b
+        bs,i+1
+
+    let entityTypeGet (bs,i) =
+        Array.get bs i |> EntityType, i+1
+
+    let entitySet (Entity(et,eid)) (bs,i) =
+        entityTypeSet et (bs,i)
+        |> uint32Set eid
+
+    let entityGet (bs,i) =
+        let et,i = entityTypeGet (bs,i)
+        let eid,i = uint32Get (bs,i)
+        Entity(et,eid), i
+
+    let attributeSet (a:Attribute) (bs,i) =
+        uint32Set a.Id (bs,i)
+
+    let attributeGet (getAttribute:uint32->Attribute) (bs,i) =
+        let eid,i = uint32Get (bs,i)
+        getAttribute eid, i
+
 
 [<Struct>]
-type DataSeries = DataSeries of byte []
+type DataSeries = 
+    internal
+    | DataSeries of byte []
+
+open System.Collections.Generic
 
 module internal DataSeries =
-    open Serialize
+    open ArraySerialize
     
     /// Create a new DataSetSeries from a single datum.
     let single (Date dt,Tx tx,value) =
@@ -342,3 +384,41 @@ module internal DataSeries =
                 let nextTx = currentTx - dt
                 getValue i nextDate nextValue nextTx
         getValue i currentDate currentValue currentTx
+
+    
+
+module StreamSerialize =
+    open ArraySerialize
+
+    
+    let textListSet (l:Text ResizeArray) (s:Stream) =
+        let bs,i = uint32Set (uint32 l.Count) empty
+        s.Write(bs, 0, i)
+        arrayPool.Return bs
+        Seq.iter (fun t ->
+            let bs,i = textSet t empty
+            s.Write(bs, 0, i)
+            arrayPool.Return bs
+        ) l
+
+    let byteListSet (l:byte[] ResizeArray) (s:Stream) =
+        let bs,i = uint32Set (uint32 l.Count) empty
+        s.Write(bs, 0, i)
+        arrayPool.Return bs
+        Seq.iter (fun bytes ->
+            s.Write(bytes, 0, bytes.Length)
+        ) l
+    
+    let dataSeriesDictionarySet (dictionary:Dictionary<Entity * Attribute, DataSeries>) (s:Stream) =
+        let bs,i = uint32Set (uint32 dictionary.Count) empty
+        s.Write(bs, 0, i)
+        arrayPool.Return bs
+        dictionary |> Seq.iter (fun kv ->
+            let bs,i =
+                entitySet (fst kv.Key) empty
+                |> attributeSet (snd kv.Key)
+            s.Write(bs, 0, i)
+            arrayPool.Return bs
+            let (DataSeries bytes) = kv.Value
+            s.Write(bytes, 0, bytes.Length)
+        )

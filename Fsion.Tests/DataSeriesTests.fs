@@ -1,4 +1,4 @@
-﻿module Fsion.Tests.SerializeTests
+﻿module Fsion.Tests.ArraySerializeTests
 
 open System
 open Expecto
@@ -8,90 +8,90 @@ open Fsion
 let serializeTests =
 
     let testRoundtrip serializeSet serializeGet i =
-            let b,_ = serializeSet i Serialize.empty
+            let b,_ = serializeSet i ArraySerialize.empty
             let j,_ = serializeGet (b,0)
             Expect.equal j i "testRoundtrip same"
 
     testList "serialize" [
 
         testAsync "zigzag examples" {
-                Serialize.zigzag  0 |> Expect.equal 0u <| "0"
-                Serialize.zigzag -1 |> Expect.equal 1u <| "-1"
-                Serialize.zigzag  1 |> Expect.equal 2u <| "1"
-                Serialize.zigzag -2 |> Expect.equal 3u <| "-2"
-                Serialize.zigzag  2 |> Expect.equal 4u <| "2"
-                Serialize.zigzag  Int32.MaxValue
+                ArraySerialize.zigzag  0 |> Expect.equal 0u <| "0"
+                ArraySerialize.zigzag -1 |> Expect.equal 1u <| "-1"
+                ArraySerialize.zigzag  1 |> Expect.equal 2u <| "1"
+                ArraySerialize.zigzag -2 |> Expect.equal 3u <| "-2"
+                ArraySerialize.zigzag  2 |> Expect.equal 4u <| "2"
+                ArraySerialize.zigzag  Int32.MaxValue
                 |> Expect.equal (UInt32.MaxValue-1u) <| "max-1"
-                Serialize.zigzag  Int32.MinValue
+                ArraySerialize.zigzag  Int32.MinValue
                 |> Expect.equal UInt32.MaxValue <| "max"
         }
 
         testAsync "unzigzag examples" {
-                Serialize.unzigzag 0u |> Expect.equal  0 <| "0"
-                Serialize.unzigzag 1u |> Expect.equal -1 <| "1"
-                Serialize.unzigzag 2u |> Expect.equal  1 <| "2"
-                Serialize.unzigzag 3u |> Expect.equal -2 <| "3"
-                Serialize.unzigzag 4u |> Expect.equal  2 <| "4"
-                Serialize.unzigzag (UInt32.MaxValue-1u)
+                ArraySerialize.unzigzag 0u |> Expect.equal  0 <| "0"
+                ArraySerialize.unzigzag 1u |> Expect.equal -1 <| "1"
+                ArraySerialize.unzigzag 2u |> Expect.equal  1 <| "2"
+                ArraySerialize.unzigzag 3u |> Expect.equal -2 <| "3"
+                ArraySerialize.unzigzag 4u |> Expect.equal  2 <| "4"
+                ArraySerialize.unzigzag (UInt32.MaxValue-1u)
                 |> Expect.equal Int32.MaxValue <| "max-1"
-                Serialize.unzigzag UInt32.MaxValue
+                ArraySerialize.unzigzag UInt32.MaxValue
                 |> Expect.equal Int32.MinValue <| "max"
         }
 
         testProp "zigzag roundtrip" (fun (DoNotSize i) ->
-            let j = Serialize.zigzag i |> Serialize.unzigzag
+            let j = ArraySerialize.zigzag i |> ArraySerialize.unzigzag
             Expect.equal j i "same"
         )
 
         testAsync "zigzag64 examples" {
-                Serialize.zigzag64  0L |> Expect.equal 0UL <| "0"
-                Serialize.zigzag64 -1L |> Expect.equal 1UL <| "-1"
-                Serialize.zigzag64  1L |> Expect.equal 2UL <| "1"
-                Serialize.zigzag64 -2L |> Expect.equal 3UL <| "-2"
-                Serialize.zigzag64  2L |> Expect.equal 4UL <| "2"
-                Serialize.zigzag64  Int64.MaxValue
+                ArraySerialize.zigzag64  0L |> Expect.equal 0UL <| "0"
+                ArraySerialize.zigzag64 -1L |> Expect.equal 1UL <| "-1"
+                ArraySerialize.zigzag64  1L |> Expect.equal 2UL <| "1"
+                ArraySerialize.zigzag64 -2L |> Expect.equal 3UL <| "-2"
+                ArraySerialize.zigzag64  2L |> Expect.equal 4UL <| "2"
+                ArraySerialize.zigzag64  Int64.MaxValue
                 |> Expect.equal (UInt64.MaxValue-1UL) <| "max-1"
-                Serialize.zigzag64 Int64.MinValue
+                ArraySerialize.zigzag64 Int64.MinValue
                 |> Expect.equal UInt64.MaxValue <| "max"
         }
 
         testAsync "unzigzag64 examples" {
-                Serialize.unzigzag64 0UL |> Expect.equal  0L <| "0"
-                Serialize.unzigzag64 1UL |> Expect.equal -1L <| "1"
-                Serialize.unzigzag64 2UL |> Expect.equal  1L <| "2"
-                Serialize.unzigzag64 3UL |> Expect.equal -2L <| "3"
-                Serialize.unzigzag64 4UL |> Expect.equal  2L <| "4"
-                Serialize.unzigzag64 (UInt64.MaxValue-1UL)
+                ArraySerialize.unzigzag64 0UL |> Expect.equal  0L <| "0"
+                ArraySerialize.unzigzag64 1UL |> Expect.equal -1L <| "1"
+                ArraySerialize.unzigzag64 2UL |> Expect.equal  1L <| "2"
+                ArraySerialize.unzigzag64 3UL |> Expect.equal -2L <| "3"
+                ArraySerialize.unzigzag64 4UL |> Expect.equal  2L <| "4"
+                ArraySerialize.unzigzag64 (UInt64.MaxValue-1UL)
                 |> Expect.equal Int64.MaxValue <| "max-1"
-                Serialize.unzigzag64 UInt64.MaxValue
+                ArraySerialize.unzigzag64 UInt64.MaxValue
                 |> Expect.equal Int64.MinValue <| "max"
         }
 
         testProp "zigzag64 roundtrip" (fun (DoNotSize i) ->
-            let j = Serialize.zigzag64 i |> Serialize.unzigzag64
+            let j = ArraySerialize.zigzag64 i |> ArraySerialize.unzigzag64
             Expect.equal j i "same"
         )
 
         testProp "bool roundtrip" (
-            testRoundtrip Serialize.boolSet Serialize.boolGet
+            testRoundtrip ArraySerialize.boolSet ArraySerialize.boolGet
         )
 
         testProp "varint16 roundtrip" (fun (DoNotSize i) ->
-            testRoundtrip Serialize.uint16Set Serialize.uint16Get i
+            testRoundtrip ArraySerialize.uint16Set ArraySerialize.uint16Get i
         )
 
         testProp "varint32 roundtrip" (fun (DoNotSize i) ->
-            testRoundtrip Serialize.uint32Set Serialize.uint32Get i
+            testRoundtrip ArraySerialize.uint32Set ArraySerialize.uint32Get i
         )
 
         testProp "varint32 skip" (fun (DoNotSize i) ->
-            let bs,i = Serialize.uint32Set i Serialize.empty
-            let j = Serialize.uint32Skip (bs,0)
+            let bs,i = ArraySerialize.uint32Set i ArraySerialize.empty
+            let j = ArraySerialize.uint32Skip (bs,0)
             Expect.equal i j "skip same"
         )
 
         testProp "varint64 roundtrip" (fun (DoNotSize i) ->
-            testRoundtrip Serialize.uint64Set Serialize.uint64Get i
+            testRoundtrip ArraySerialize.uint64Set ArraySerialize.uint64Get i
         )
     ]
 
