@@ -124,7 +124,7 @@ module DataCache =
                     use fs =
                         let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
                         new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
-                    StreamSerialize.dataSeriesDictionaryLoad (failwith "hmmm") dataSeriesDictionary fs
+                    StreamSerialize.dataSeriesDictionaryLoad dataSeriesDictionary fs
                     StreamSerialize.textListLoad fs texts
                     StreamSerialize.byteListLoad fs bytes
                     Ok ()
@@ -142,16 +142,17 @@ module DataCache =
                 dataSeriesLock.Dispose()
         }
 
-type TxData = {
+type TransactionData = {
     Headers: (Attribute * int64) list
-    Updates: (Entity * (Attribute * Date * int64) list1) list
-    Creates: (EntityType * (Attribute * Date * int64) list1) list
-    Strings: string array
+    Creates: (Entity * Attribute * Date * int64) list
+    Updates: (Entity * Attribute * Date * int64) list
+    Strings: string[]
+    Data: byte[]
 }
 
 type TransactionLog =
-    abstract member Set : Tx -> TxData -> Result<unit,exn>
-    abstract member Get : Tx -> Task<TxData> seq
+    abstract member Set : Tx -> TransactionData -> Result<unit,exn>
+    abstract member Get : Tx -> Task<TransactionData> seq
 
 module TransationLog =
     let createNull() =
@@ -192,53 +193,31 @@ module Database =
 
     let private transactionLock = obj()
 
-    let setTransaction (txData: TxData) (time: Time) (db:Database) =
+    let setTransaction (txData: TransactionData) (time: Time) (db:Database) =
         lock transactionLock (fun () ->
             
             let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
             
-            let ups (Entity(EntityType etId,_) as entity,attributeList) =
+            let ups (Entity(EntityType etId,_) as entity,Attribute attributeId,date,value) =
                 let mutable attributeArray =
-                    db.IndexEntityTypeAttribute.[int etId]
-                attributeList
-                |> List1.toList
-                |> Seq.iter (fun (attribute,date,value) ->
-                    let value =
-                        if attribute.IsString then
-                            let (TextId sid) =
-                                Text.ofString txData.Strings.[int value]
-                                |> db.DataCache.GetTextId
-                            int64 sid
-                        else value
-                    db.DataCache.Ups (entity,attribute)
-                        (date,Tx txId,value)
-                    if Array.contains attribute.Id attributeArray |> not then
-                        Array.Resize(&attributeArray, attributeArray.Length+1)
-                        attributeArray.[attributeArray.Length-1] <- attribute.Id
-                        db.IndexEntityTypeAttribute.[int etId] <- attributeArray
-                )
+                    &db.IndexEntityTypeAttribute.[int etId]
+                db.DataCache.Ups (entity,Attribute attributeId)
+                    (date,Tx txId,value)
+                if Array.contains attributeId attributeArray |> not then
+                    Array.Resize(&attributeArray, attributeArray.Length+1)
+                    attributeArray.[attributeArray.Length-1] <- attributeId
+                    db.IndexEntityTypeAttribute.[int etId] <- attributeArray
             
-            // Updates
-            List.iter ups txData.Updates
+            let date = Time.toDate time
+            let txEntity = Entity(EntityType.tx, txId)
 
-            let headerList =
-                List.map (fun (a,v) -> a,Time.toDate time,v) txData.Headers
-                |> List1.init (Attribute.time,Time.toDate time,Time.toInt64 time)
+            txData.Headers
+            |> Seq.append [Attribute.time, Time.toInt64 time]
+            |> Seq.map (fun (a,v) -> txEntity,a,date,v)
+            |> Seq.iter ups
 
-            // Creates
-            [EntityType.tx, headerList]
-            |> Seq.append txData.Creates
-            |> Seq.iter (fun (EntityType entityTypeId,attributeList) ->
-                let entityId = db.IndexEntityTypeCount.[int entityTypeId]
-                let entity = Entity(EntityType entityTypeId, uint32 entityId)
-                if int entityTypeId = entityTypeEntityTypeIndex then
-                    let length = db.IndexEntityTypeCount.Length
-                    Array.Resize(&db.IndexEntityTypeCount, length+1)
-                    Array.Resize(&db.IndexEntityTypeAttribute, length+1)
-                    db.IndexEntityTypeAttribute.[length] <- [||]
-                ups (entity,attributeList)
-                db.IndexEntityTypeCount.[int entityTypeId] <- entityId + 1u
-            )
-            
+            Seq.iter ups txData.Creates
+            Seq.iter ups txData.Updates
+
             db.IndexEntityTypeCount.[txEntityTypeIndex] <- txId + 1u
         )

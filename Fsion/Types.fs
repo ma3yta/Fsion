@@ -1,7 +1,6 @@
 ﻿namespace Fsion
 
 open System
-open System.Diagnostics
 
 [<Struct>]
 type Text =
@@ -47,49 +46,23 @@ type Datum = Date * Tx * int64
 
 [<Struct>]
 type EntityType =
-    | EntityType of byte
-    static member tx = EntityType 0uy
-    static member entityType = EntityType 1uy
-    static member attribute = EntityType 2uy
+    | EntityType of uint32
+    static member tx = EntityType 0u
+    static member entityType = EntityType 1u
+    static member attribute = EntityType 2u
 
 [<Struct>]
 type Entity =
     | Entity of EntityType * uint32
 
-[<CustomEquality;CustomComparison;DebuggerDisplay("{Uri}")>]
-type Attribute = {
-    Id: uint32
-    Uri: string
-    IsSet: bool
-    IsString: bool
-    Doc: string
-} with
-    static member uri = {
-        Id = 0u
-        Uri = "uri"
-        IsSet = true
-        IsString = true
-        Doc = "Unique reference for an entity. Can be updated but the previous uris will continue to be other unique references to the entity."
-    }
-    static member time = {
-        Id = 1u
-        Uri = "time"
-        IsSet = false
-        IsString = false
-        Doc = "Time the transaction was committed to the database."
-    }
-    member x.Entity =
-        Entity(EntityType.attribute, x.Id)
-    override x.GetHashCode() =
-        int x.Id
-    override x.Equals o =
-        x.Id = (o :?> Attribute).Id
-    interface IEquatable<Attribute> with
-        member x.Equals(o:Attribute) =
-            x.Id = o.Id
-    interface IComparable with
-        member x.CompareTo o =
-            compare x.Id ((o :?> Attribute).Id)
+[<Struct>]
+type Attribute =
+    | Attribute of uint32
+    static member uri = Attribute 0u
+    static member time = Attribute 1u
+    member a.Entity =
+        let (Attribute i) = a
+        Entity(EntityType.attribute, i)
 
 type TextId =
     internal

@@ -86,9 +86,10 @@ let databaseTestList (db:Database) = [
     testAsync "nothing" {
         let txData = {
             Headers = []
-            Updates = []
             Creates = []
+            Updates = []
             Strings = [|"hi"|]
+            Data = [||]
         }
         Database.setTransaction txData (Time 1L) db
     }
@@ -96,9 +97,10 @@ let databaseTestList (db:Database) = [
     testAsync "create" {
         let txData = {
             Headers = []
+            Creates = [Entity(EntityType.attribute,1u), Attribute.uri, Date 10u, 0L]
             Updates = []
-            Creates = [EntityType.attribute, List1.ofOne (Attribute.uri, Date 10u, 0L)]
             Strings = [|"my_uri"|]
+            Data = [||]
         }
         Database.setTransaction txData (Time 2L) db
     }
@@ -106,9 +108,10 @@ let databaseTestList (db:Database) = [
     testAsync "update" {
         let txData = {
             Headers = []
-            Updates = [Attribute.uri.Entity, List1.ofOne (Attribute.uri, Date 10u, 0L)]
             Creates = []
+            Updates = [Attribute.uri.Entity, Attribute.uri, Date 10u, 0L]
             Strings = [|"my_uri2"|]
+            Data = [||]
         }
         Database.setTransaction txData (Time 2L) db
     }

@@ -221,13 +221,14 @@ module internal ArraySerialize =
         let l = int l
         System.Text.UTF8Encoding.UTF8.GetString(bs, i, l) |> Text,i+l
 
-    let entityTypeSet (EntityType b) (bs,i) =
-        let bs = resizeUp bs (i+1)
-        bs.[i] <- b
-        bs,i+1
+    let entityTypeSet (EntityType eid) (bs,i) =
+        uint32Set eid (bs,i)
+
 
     let entityTypeGet (bs,i) =
-        Array.get bs i |> EntityType, i+1
+        let eid,i = uint32Get (bs,i)
+        EntityType eid, i
+
 
     let entitySet (Entity(et,eid)) (bs,i) =
         entityTypeSet et (bs,i)
@@ -238,12 +239,12 @@ module internal ArraySerialize =
         let eid,i = uint32Get (bs,i)
         Entity(et,eid), i
 
-    let attributeSet (a:Attribute) (bs,i) =
-        uint32Set a.Id (bs,i)
+    let attributeSet (Attribute aid) (bs,i) =
+        uint32Set aid (bs,i)
 
-    let attributeGet (getAttribute:uint32->Attribute) (bs,i) =
+    let attributeGet (bs,i) =
         let eid,i = uint32Get (bs,i)
-        getAttribute eid, i
+        Attribute eid, i
 
 
 [<Struct>]
@@ -449,16 +450,16 @@ module StreamSerialize =
             a.[i] <- bytesGet s
 
     let entityTypeGet (s:Stream) =
-        s.ReadByte() |> byte |> EntityType
+        uint32Get s |> EntityType
     
     let entityGet (s:Stream) =
         let et = entityTypeGet s
         let eid = uint32Get s
         Entity(et,eid)
 
-    let attributeGet (getAttribute:uint32->Attribute) (s:Stream) =
+    let attributeGet (s:Stream) =
         let eid = uint32Get s
-        getAttribute eid
+        Attribute eid
 
     let entityAttributeSet ((entity,attribute):Entity * Attribute) (s:Stream) =
         let bs,i =
@@ -467,8 +468,8 @@ module StreamSerialize =
         s.Write(bs, 0, i)
         ArraySerialize.arrayPool.Return bs
 
-    let entityAttributeGet (getAttribute:uint32->Attribute) (s:Stream) =
-        entityGet s, attributeGet getAttribute s
+    let entityAttributeGet (s:Stream) =
+        entityGet s, attributeGet s
 
     let dataSeriesDictionarySet (dictionary:Dictionary<_,_>) (s:Stream) =
         uint32Set (uint32 dictionary.Count) s
@@ -478,8 +479,8 @@ module StreamSerialize =
             bytesSet s bytes
         )
 
-    let dataSeriesDictionaryLoad (getAttribute:uint32->Attribute) (d:Dictionary<_,_>) (s:Stream) =
+    let dataSeriesDictionaryLoad (d:Dictionary<_,_>) (s:Stream) =
         let l = uint32Get s |> int
         d.Clear()
         for i = 0 to l-1 do
-            d.Add(entityAttributeGet getAttribute s, bytesGet s |> DataSeries)
+            d.Add(entityAttributeGet s, bytesGet s |> DataSeries)
