@@ -88,7 +88,7 @@ let databaseTestList (db:Database) = [
             Headers = []
             Creates = []
             Updates = []
-            Strings = [|"hi"|]
+            Text = [|Text.ofString "hi"|]
             Data = [||]
         }
         Database.setTransaction txData (Time 1L) db
@@ -99,7 +99,7 @@ let databaseTestList (db:Database) = [
             Headers = []
             Creates = [Entity(EntityType.attribute,1u), Attribute.uri, Date 10u, 0L]
             Updates = []
-            Strings = [|"my_uri"|]
+            Text = [|Text.ofString "my_uri"|]
             Data = [||]
         }
         Database.setTransaction txData (Time 2L) db
@@ -110,7 +110,7 @@ let databaseTestList (db:Database) = [
             Headers = []
             Creates = []
             Updates = [Attribute.uri.Entity, Attribute.uri, Date 10u, 0L]
-            Strings = [|"my_uri2"|]
+            Text = [|Text.ofString "my_uri2"|]
             Data = [||]
         }
         Database.setTransaction txData (Time 2L) db

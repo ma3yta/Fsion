@@ -1,6 +1,7 @@
 ﻿namespace Fsion
 
 open System
+open System.IO
 open System.Threading
 open System.Collections.Generic
 open System.Threading.Tasks
@@ -21,7 +22,6 @@ type DataCache =
     abstract member SnapshotDelete : int -> Result<unit,exn>
 
 module DataCache =
-    open System.IO
 
     let createMemory (snapshotPath:string) =
         let dataSeriesDictionary = Dictionary<Entity * Attribute, DataSeries>()
@@ -142,14 +142,6 @@ module DataCache =
                 dataSeriesLock.Dispose()
         }
 
-type TransactionData = {
-    Headers: (Attribute * int64) list
-    Creates: (Entity * Attribute * Date * int64) list
-    Updates: (Entity * Attribute * Date * int64) list
-    Strings: string[]
-    Data: byte[]
-}
-
 type TransactionLog =
     abstract member Set : Tx -> TransactionData -> Result<unit,exn>
     abstract member Get : Tx -> Task<TransactionData> seq
@@ -162,11 +154,16 @@ module TransationLog =
             member __.Get tx =
                 invalidOp "null log"
         }
-    let createLocal path =
+    let createLocal transactionPath =
         { new TransactionLog with
-            member __.Set (Tx txId) txData =
-                let filename = System.IO.Path.Combine(path, (txId.ToString()))
-                invalidOp "not implemented"
+            member __.Set (Tx txId) transactionData =
+                try
+                    use fs =
+                        Path.Combine [|transactionPath;txId.ToString()+".fsl"|]
+                        |> File.Create
+                    StreamSerialize.transactionSet transactionData fs
+                    Ok ()
+                with e -> Error e
             member __.Get tx =
                 invalidOp "not implemented"
         }

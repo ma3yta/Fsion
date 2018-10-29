@@ -405,7 +405,18 @@ module StreamSerialize =
             if b < 128 then x+uint32 b
             else read (x + uint32(byte b &&& 127uy) <<< 7)
         read 0u
+
+    let uint64Set u (s:Stream) =
+        let bs,i = ArraySerialize.uint64Set u ArraySerialize.empty
+        s.Write(bs, 0, i)
+        ArraySerialize.arrayPool.Return bs
     
+    let uint64Get (s:Stream) =
+        let rec read x =
+            let b = s.ReadByte() |> byte
+            if b < 128uy then x+uint64 b
+            else read (x + uint64(b &&& 127uy) <<< 7)
+        read 0uL
     let textSet (s:Stream) t =
         let bs,i = ArraySerialize.textSet t ArraySerialize.empty
         s.Write(bs, 0, i)
@@ -484,3 +495,80 @@ module StreamSerialize =
         d.Clear()
         for i = 0 to l-1 do
             d.Add(entityAttributeGet s, bytesGet s |> DataSeries)
+
+    let transactionSet (transactionData:TransactionData) (s:Stream) =
+        
+        let headers = transactionData.Headers
+        uint32Set (uint32 headers.Length) s
+        List.iter (fun (Attribute a,d) ->
+            uint32Set a s
+            uint64Set (uint64 d) s
+        ) headers
+        
+        let creates = transactionData.Creates
+        uint32Set (uint32 creates.Length) s
+        List.fold (fun (pet,peid,pa,pd,pv) (Entity(EntityType et,eid),Attribute a,Date d,v) ->
+            uint32Set (et-pet) s
+            uint32Set (eid-peid) s
+            uint32Set (a-pa) s
+            uint32Set (d-pd) s
+            let v = ArraySerialize.zigzag64 v
+            uint64Set (v-pv) s
+            (et,eid,a,d,v)
+        ) (0u,0u,0u,0u,0uL) creates |> ignore
+        
+        let updates = transactionData.Updates
+        uint32Set (uint32 updates.Length) s
+        List.fold (fun (pet,peid,pa,pd,pv) (Entity(EntityType et,eid),Attribute a,Date d,v) ->
+            uint32Set (et-pet) s
+            uint32Set (eid-peid) s
+            uint32Set (a-pa) s
+            uint32Set (d-pd) s
+            let v = ArraySerialize.zigzag64 v
+            uint64Set (v-pv) s
+            (et,eid,a,d,v)
+        ) (0u,0u,0u,0u,0uL) updates |> ignore
+
+        let text = transactionData.Text
+        uint32Set (uint32 text.Length) s
+        Array.iter (textSet s) text
+
+        let data = transactionData.Data
+        uint32Set (uint32 data.Length) s
+        Array.iter (bytesSet s) data
+
+    let transactionDataGet (s:Stream) = {
+        Headers =
+            let l = uint32Get s |> int
+            List.init l (fun _ ->
+                attributeGet s, (uint64Get s |> int64)
+            )
+        Creates =
+            let l = uint32Get s |> int
+            if l=0 then []
+            else
+                List.unfold (fun (i,et,eid,a,d,v) ->
+                    if i=0 then None
+                    else
+                        Some ( (Entity(EntityType et,eid),Attribute a,Date d,ArraySerialize.unzigzag64 v),
+                               (i-1,et+uint32Get s,eid+uint32Get s,a+uint32Get s,d+uint32Get s,v+uint64Get s)
+                        )
+                ) (l,uint32Get s, uint32Get s, uint32Get s, uint32Get s, uint64Get s)
+        Updates =
+            let l = uint32Get s |> int
+            if l=0 then []
+            else
+                List.unfold (fun (i,et,eid,a,d,v) ->
+                    if i=0 then None
+                    else
+                        Some ( (Entity(EntityType et,eid),Attribute a,Date d,ArraySerialize.unzigzag64 v),
+                               (i-1,et+uint32Get s,eid+uint32Get s,a+uint32Get s,d+uint32Get s,v+uint64Get s)
+                        )
+                ) (l,uint32Get s, uint32Get s, uint32Get s, uint32Get s, uint64Get s)
+        Text =
+            let l = uint32Get s |> int
+            Array.init l (fun _ -> textGet s)
+        Data =
+            let l = uint32Get s |> int
+            Array.init l (fun _ -> bytesGet s)
+    }
