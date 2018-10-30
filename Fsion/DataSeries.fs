@@ -2,7 +2,6 @@
 
 open System
 open System.IO
-open System.Buffers
 open Fsion
 
 module internal ArraySerialize =
@@ -12,33 +11,10 @@ module internal ArraySerialize =
     let zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
     let unzigzag64 i = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
     
-    let arrayPool = ArrayPool<byte>.Shared
-    
-    let private resizeUp bytes i =
-        let l = Array.length bytes
-        let rec doubleUp j =
-            if j>=i then j
-            else doubleUp (j<<<1)
-        if l>=i then bytes
-        elif l=0 then doubleUp 16 |> arrayPool.Rent
-        else
-            let newBytes = doubleUp (l<<<1) |> arrayPool.Rent
-            Buffer.BlockCopy(bytes, 0, newBytes, 0, l)
-            arrayPool.Return bytes
-            newBytes
-
-    let resizeDown (bs,i) =
-        if Array.length bs = i then bs
-        else
-            let nbs = Array.zeroCreate i
-            Array.Copy(bs,nbs,i)
-            arrayPool.Return bs
-            nbs
-
     let empty = [||],0
 
     let boolSet x (bs,i) =
-        let bs = resizeUp bs (i+1)
+        let bs = BytePool.ResizeUp bs (i+1)
         bs.[i] <- if x then 1uy else 0uy
         bs,i+1
 
@@ -47,16 +23,16 @@ module internal ArraySerialize =
 
     let uint16Set x (bs,i) =
         if x<0x80us then
-            let bs = resizeUp bs (i+1)
+            let bs = BytePool.ResizeUp bs (i+1)
             bs.[i] <- byte x
             bs,i+1
         elif x<0x4000us then
-            let bs = resizeUp bs (i+2)
+            let bs = BytePool.ResizeUp bs (i+2)
             bs.[i] <- byte (x>>>7) ||| 128uy
             bs.[i+1] <- byte x &&& 127uy
             bs,i+2
         else
-            let bs = resizeUp bs (i+3)
+            let bs = BytePool.ResizeUp bs (i+3)
             bs.[i] <- byte (x>>>14) ||| 128uy
             bs.[i+1] <- byte (x>>>7) ||| 128uy
             bs.[i+2] <- byte x &&& 127uy
@@ -71,29 +47,29 @@ module internal ArraySerialize =
 
     let uint32Set x (bs,i) =
         if x<0x80u then
-            let bs = resizeUp bs (i+1)
+            let bs = BytePool.ResizeUp bs (i+1)
             bs.[i] <- byte x
             bs,i+1
         elif x<0x4000u then
-            let bs = resizeUp bs (i+2)
+            let bs = BytePool.ResizeUp bs (i+2)
             bs.[i] <- byte (x>>>7) ||| 128uy
             bs.[i+1] <- byte x &&& 127uy
             bs,i+2
         elif x<0x200000u then
-            let bs = resizeUp bs (i+3)
+            let bs = BytePool.ResizeUp bs (i+3)
             bs.[i] <- byte (x>>>14) ||| 128uy
             bs.[i+1] <- byte (x>>>7) ||| 128uy
             bs.[i+2] <- byte x &&& 127uy
             bs,i+3
         elif x<0x10000000u then
-            let bs = resizeUp bs (i+4)
+            let bs = BytePool.ResizeUp bs (i+4)
             bs.[i] <- byte (x>>>21) ||| 128uy
             bs.[i+1] <- byte (x>>>14) ||| 128uy
             bs.[i+2] <- byte (x>>>7) ||| 128uy
             bs.[i+3] <- byte x &&& 127uy
             bs,i+4
         else
-            let bs = resizeUp bs (i+5)
+            let bs = BytePool.ResizeUp bs (i+5)
             bs.[i] <- byte (x>>>28) ||| 128uy
             bs.[i+1] <- byte (x>>>21) ||| 128uy
             bs.[i+2] <- byte (x>>>14) ||| 128uy
@@ -116,29 +92,29 @@ module internal ArraySerialize =
 
     let uint64Set x (bs,i) =
         if x<0x80UL then
-            let bs = resizeUp bs (i+1)
+            let bs = BytePool.ResizeUp bs (i+1)
             bs.[i] <- byte x
             bs,i+1
         elif x<0x4000UL then
-            let bs = resizeUp bs (i+2)
+            let bs = BytePool.ResizeUp bs (i+2)
             bs.[i] <- byte (x>>>7) ||| 128uy
             bs.[i+1] <- byte x &&& 127uy
             bs,i+2
         elif x<0x200000UL then
-            let bs = resizeUp bs (i+3)
+            let bs = BytePool.ResizeUp bs (i+3)
             bs.[i] <- byte (x>>>14) ||| 128uy
             bs.[i+1] <- byte (x>>>7) ||| 128uy
             bs.[i+2] <- byte x &&& 127uy
             bs,i+3
         elif x<0x10000000UL then
-            let bs = resizeUp bs (i+4)
+            let bs = BytePool.ResizeUp bs (i+4)
             bs.[i] <- byte (x>>>21) ||| 128uy
             bs.[i+1] <- byte (x>>>14) ||| 128uy
             bs.[i+2] <- byte (x>>>7) ||| 128uy
             bs.[i+3] <- byte x &&& 127uy
             bs,i+4
         elif x<0x800000000UL then
-            let bs = resizeUp bs (i+5)
+            let bs = BytePool.ResizeUp bs (i+5)
             bs.[i] <- byte (x>>>28) ||| 128uy
             bs.[i+1] <- byte (x>>>21) ||| 128uy
             bs.[i+2] <- byte (x>>>14) ||| 128uy
@@ -146,7 +122,7 @@ module internal ArraySerialize =
             bs.[i+4] <- byte x &&& 127uy
             bs,i+5
         elif x<0x40000000000UL then
-            let bs = resizeUp bs (i+6)
+            let bs = BytePool.ResizeUp bs (i+6)
             bs.[i] <- byte (x>>>35) ||| 128uy
             bs.[i+1] <- byte (x>>>28) ||| 128uy
             bs.[i+2] <- byte (x>>>21) ||| 128uy
@@ -155,7 +131,7 @@ module internal ArraySerialize =
             bs.[i+5] <- byte x &&& 127uy
             bs,i+6
         elif x<0x2000000000000UL then
-            let bs = resizeUp bs (i+7)
+            let bs = BytePool.ResizeUp bs (i+7)
             bs.[i] <- byte (x>>>42) ||| 128uy
             bs.[i+1] <- byte (x>>>35) ||| 128uy
             bs.[i+2] <- byte (x>>>28) ||| 128uy
@@ -165,7 +141,7 @@ module internal ArraySerialize =
             bs.[i+6] <- byte x &&& 127uy
             bs,i+7
         elif x<0x100000000000000UL then
-            let bs = resizeUp bs (i+8)
+            let bs = BytePool.ResizeUp bs (i+8)
             bs.[i] <- byte (x>>>49) ||| 128uy
             bs.[i+1] <- byte (x>>>42) ||| 128uy
             bs.[i+2] <- byte (x>>>35) ||| 128uy
@@ -176,7 +152,7 @@ module internal ArraySerialize =
             bs.[i+7] <- byte x &&& 127uy
             bs,i+8
         elif x<0x8000000000000000UL then
-            let bs = resizeUp bs (i+9)
+            let bs = BytePool.ResizeUp bs (i+9)
             bs.[i] <- byte (x>>>56) ||| 128uy
             bs.[i+1] <- byte (x>>>49) ||| 128uy
             bs.[i+2] <- byte (x>>>42) ||| 128uy
@@ -188,7 +164,7 @@ module internal ArraySerialize =
             bs.[i+8] <- byte x &&& 127uy
             bs,i+9
         else
-            let bs = resizeUp bs (i+10)
+            let bs = BytePool.ResizeUp bs (i+10)
             bs.[i] <- byte (x>>>63) ||| 128uy
             bs.[i+1] <- byte (x>>>56) ||| 128uy
             bs.[i+2] <- byte (x>>>49) ||| 128uy
@@ -212,7 +188,7 @@ module internal ArraySerialize =
         let b = System.Text.UTF8Encoding.UTF8.GetBytes s
         let l = Array.length b
         let bs,i = uint32Set (uint32 l) (bs,i)
-        let bs = resizeUp bs (i+l)
+        let bs = BytePool.ResizeUp bs (i+l)
         Buffer.BlockCopy(b, 0, bs, i, l)
         bs,i+l
         
@@ -263,7 +239,7 @@ module internal DataSeries =
         |> uint32Set dt
         |> uint32Set tx
         |> uint64Set (zigzag64 value)
-        |> resizeDown
+        |> BytePool.ResizeExact
         |> DataSeries
 
     /// Create a new DataSetSeries from a datum and DataSetSeries.
@@ -284,7 +260,7 @@ module internal DataSeries =
                 |> uint64Set (zigzag64 (newValue - currentValue))
             let nDataSeries = Array.zeroCreate (Array.length dataSeries+j-i)
             Array.Copy(bs, nDataSeries, j)
-            arrayPool.Return bs
+            BytePool.Return bs
             if Array.length dataSeries <> i then
                 Array.Copy(dataSeries, i, nDataSeries, j, Array.length dataSeries-i)
             DataSeries nDataSeries
@@ -298,7 +274,7 @@ module internal DataSeries =
                         |> uint64Set (zigzag64 (currentValue - newValue))
                     let nDataSeries = Array.zeroCreate (i+j)
                     Array.Copy(bs, 0, nDataSeries, i, j)
-                    arrayPool.Return bs
+                    BytePool.Return bs
                     Array.Copy(dataSeries, nDataSeries, i)
                     DataSeries nDataSeries
                 else
@@ -320,7 +296,7 @@ module internal DataSeries =
                         let nDataSeries =
                             Array.zeroCreate (i+k+Array.length dataSeries-j)
                         Array.Copy(bs, 0, nDataSeries, i, k)
-                        arrayPool.Return bs
+                        BytePool.Return bs
                         Array.Copy(dataSeries, nDataSeries, i)
                         Array.Copy(dataSeries, j, nDataSeries, i+k,
                             Array.length dataSeries-j)
@@ -397,7 +373,7 @@ module StreamSerialize =
     let uint32Set u (s:Stream) =
         let bs,i = ArraySerialize.uint32Set u ArraySerialize.empty
         s.Write(bs, 0, i)
-        ArraySerialize.arrayPool.Return bs
+        BytePool.Return bs
 
     let uint32Get (s:Stream) =
         let rec read x =
@@ -409,7 +385,7 @@ module StreamSerialize =
     let uint64Set u (s:Stream) =
         let bs,i = ArraySerialize.uint64Set u ArraySerialize.empty
         s.Write(bs, 0, i)
-        ArraySerialize.arrayPool.Return bs
+        BytePool.Return bs
     
     let uint64Get (s:Stream) =
         let rec read x =
@@ -420,14 +396,14 @@ module StreamSerialize =
     let textSet (s:Stream) t =
         let bs,i = ArraySerialize.textSet t ArraySerialize.empty
         s.Write(bs, 0, i)
-        ArraySerialize.arrayPool.Return bs
+        BytePool.Return bs
 
     let textGet (s:Stream) =
         let l = uint32Get s |> int
-        let bs = ArraySerialize.arrayPool.Rent l
+        let bs = BytePool.Rent l
         read s bs 0 l
         let t = System.Text.UTF8Encoding.UTF8.GetString(bs, 0, l) |> Text
-        ArraySerialize.arrayPool.Return bs
+        BytePool.Return bs
         t
 
     let textListSet (l:Text ResizeArray) (s:Stream) =
@@ -477,7 +453,7 @@ module StreamSerialize =
             ArraySerialize.entitySet entity ArraySerialize.empty
             |> ArraySerialize.attributeSet attribute
         s.Write(bs, 0, i)
-        ArraySerialize.arrayPool.Return bs
+        BytePool.Return bs
 
     let entityAttributeGet (s:Stream) =
         entityGet s, attributeGet s

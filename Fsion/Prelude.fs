@@ -1,5 +1,7 @@
 ﻿namespace Fsion
 
+open System
+open System.Threading
 open System.Diagnostics.CodeAnalysis
 
 [<AutoOpen>]
@@ -63,3 +65,76 @@ module internal File =
             let l = int fs.Length
             load (Array.zeroCreate l) 0 l |> Ok
         with e -> Error e
+
+type private BytePoolBucket = {
+    mutable Count: int
+    mutable Lock: SpinLock
+    Buffer: byte[][]
+}
+type BytePool private () =
+    [<Literal>]
+    static let numberOfBuckets = 5
+    [<Literal>]
+    static let arraysPerBucket = 50
+    static let buckets =
+        Array.init numberOfBuckets (fun _ ->
+            {
+                Count = 0
+                Lock = SpinLock false
+                Buffer = Array.zeroCreate<byte[]> arraysPerBucket
+            }
+        )
+    static let bucketIndex i =
+        if i <= 128 then 0
+        elif i <= 256 then 1
+        elif i <= 512 then 2
+        elif i <= 1024 then 3
+        elif i <= 2048 then 4
+        else -1 // TODO: need to do something smart about this
+    
+    static member Rent i =
+        let bucketIndex = bucketIndex i
+        let bucket = buckets.[bucketIndex]
+        let mutable lockTaken = false
+        bucket.Lock.Enter &lockTaken
+        try
+            if bucket.Count = 0 then
+                Array.zeroCreate (128 <<< bucketIndex)
+            else
+                bucket.Count <- bucket.Count - 1
+                let bs = bucket.Buffer.[bucket.Count]
+                bucket.Buffer.[bucket.Count] <- null
+                bs
+        finally
+            if lockTaken then bucket.Lock.Exit false
+    static member Return (bytes:byte[]) =
+        let bucketIndex = bucketIndex bytes.Length
+        let bucket = buckets.[bucketIndex]
+        let mutable lockTaken = false
+        bucket.Lock.Enter &lockTaken
+        try
+            if bucket.Count < bucket.Buffer.Length then
+                bucket.Buffer.[bucket.Count] <- bytes
+                bucket.Count <- bucket.Count + 1
+        finally
+            if lockTaken then bucket.Lock.Exit false
+    static member ResizeUp bytes i =
+        let l = Array.length bytes
+        if l>=i then bytes
+        elif l=0 then BytePool.Rent 128
+        else
+            let rec doubleUp l =
+                let l = l<<<1
+                if l>=i then l else doubleUp l
+            let newBytes = doubleUp l |> BytePool.Rent
+            Buffer.BlockCopy(bytes, 0, newBytes, 0, l)
+            BytePool.Return bytes
+            newBytes
+    static member ResizeExact (bytes,i) =
+        if Array.length bytes = i then bytes
+        else
+            let newBytes = Array.zeroCreate i
+            Array.Copy(bytes,newBytes,i)
+            BytePool.Return bytes
+            newBytes
+    
