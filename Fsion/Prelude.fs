@@ -10,6 +10,10 @@ module Auto =
     let inline fst3 (i,_,_) = i
     let inline snd3 (_,i,_) = i
     let inline trd (_,_,i) = i
+    let inline zigzag i = (i <<< 1) ^^^ (i >>> 31) |> uint32
+    let inline unzigzag i = int(i >>> 1) ^^^ -int(i &&& 1u)
+    let inline zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
+    let inline unzigzag64 i = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
 
 [<Struct;SuppressMessage("NameConventions","TypeNamesMustBePascalCase")>]
 /// A non-empty list
@@ -95,8 +99,8 @@ type BytePool private () =
     static member Rent i =
         let bucketIndex = bucketIndex i
         let bucket = buckets.[bucketIndex]
-        let mutable lockTaken = false
-        bucket.Lock.Enter &lockTaken
+        let lockTaken = ref false
+        bucket.Lock.Enter lockTaken
         try
             if bucket.Count = 0 then
                 Array.zeroCreate (128 <<< bucketIndex)
@@ -106,18 +110,18 @@ type BytePool private () =
                 bucket.Buffer.[bucket.Count] <- null
                 bs
         finally
-            if lockTaken then bucket.Lock.Exit false
+            if !lockTaken then bucket.Lock.Exit false
     static member Return (bytes:byte[]) =
         let bucketIndex = bucketIndex bytes.Length
         let bucket = buckets.[bucketIndex]
-        let mutable lockTaken = false
-        bucket.Lock.Enter &lockTaken
+        let lockTaken = ref false
+        bucket.Lock.Enter lockTaken
         try
             if bucket.Count < bucket.Buffer.Length then
                 bucket.Buffer.[bucket.Count] <- bytes
                 bucket.Count <- bucket.Count + 1
         finally
-            if lockTaken then bucket.Lock.Exit false
+            if !lockTaken then bucket.Lock.Exit false
     static member ResizeUp bytes i =
         let l = Array.length bytes
         if l>=i then bytes

@@ -5,8 +5,10 @@ open Expecto
 let tests =
     testList null [
         TypesTests.basicTypesTests
-        ArraySerializeTests.serializeTests
-        ArraySerializeTests.dataSeriesTests
+        SerializeTests.zigzagTests
+        SerializeTests.arraySerializeTests
+        SerializeTests.dataSeriesTests
+        SerializeTests.streamSerializeTests
         DatabaseTests.dataCacheTests
         DatabaseTests.databaseTests
     ]

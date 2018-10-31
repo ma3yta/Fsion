@@ -107,9 +107,9 @@ module DataCache =
                         use fs =
                             Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
                             |> File.Create
-                        StreamSerialize.dataSeriesDictionarySet dataSeriesDictionary fs
-                        StreamSerialize.textListSet texts fs
-                        StreamSerialize.byteListSet bytes fs
+                        StreamSerialize.dataSeriesDictionarySet fs dataSeriesDictionary
+                        StreamSerialize.textListSet fs texts
+                        StreamSerialize.byteListSet fs bytes
                         Ok ()
                     with e -> Error e
                 finally
@@ -124,7 +124,7 @@ module DataCache =
                     use fs =
                         let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
                         new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
-                    StreamSerialize.dataSeriesDictionaryLoad dataSeriesDictionary fs
+                    StreamSerialize.dataSeriesDictionaryLoad fs dataSeriesDictionary
                     StreamSerialize.textListLoad fs texts
                     StreamSerialize.byteListLoad fs bytes
                     Ok ()
@@ -161,7 +161,7 @@ module TransationLog =
                     use fs =
                         Path.Combine [|transactionPath;txId.ToString()+".fsl"|]
                         |> File.Create
-                    StreamSerialize.transactionSet transactionData fs
+                    StreamSerialize.transactionDataSet fs transactionData
                     Ok ()
                 with e -> Error e
             member __.Get tx =

@@ -3,9 +3,10 @@
 open System
 open Expecto
 open FsCheck
+open Fsion
 
 module Gen =
-    let floatArb = Arb.convert (NormalFloat.op_Explicit) (NormalFloat) Arb.from
+    let floatArb = Arb.convert NormalFloat.op_Explicit NormalFloat Arb.from
     type Float01 = Float01 of float
     let float01Arb =
         let maxValue = float UInt64.MaxValue
@@ -13,6 +14,8 @@ module Gen =
             (fun (DoNotSize a) -> float a / maxValue |> Float01)
             (fun (Float01 f) -> f * maxValue + 0.5 |> uint64 |> DoNotSize)
             Arb.from
+    let textArb = Arb.convert Text.ofString Text.toString Arb.from
+
     let addToConfig config = {
         config with
             arbitrary = typeof<Float01>.DeclaringType::config.arbitrary

@@ -43,7 +43,7 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 
 - Set up the repo (build, CI etc) - DONE
 - DataSeries with compression - DONE
-- Define internal APIs (DB, Log) with in memory and disk implementations - October?
+- Define internal APIs (DB, Log) with in memory and disk implementations - DONE
 - Attribute metadata and functionality - November?
 - Transactor - November?
 - Indexes - December?
