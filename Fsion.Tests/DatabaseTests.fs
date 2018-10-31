@@ -74,10 +74,37 @@ let dataCacheTestList (cache:DataCache) = [
                 Expect.equal actual bytes "bytes same"
             )
         ]
+
+        testList "snapshot" [
+        
+            testSequencedGroup null <| testList null [
+            
+                testAsync "list empty" {
+                    Expect.equal (cache.SnapshotList()) (Ok [||]) "list empty"
+                }
+            
+                testAsync "save list delete" {
+                    Expect.equal (cache.SnapshotSave 23) (Ok ()) "saves"
+                    Expect.equal (cache.SnapshotList()) (Ok [|23|]) "lists"
+                    Expect.equal (cache.SnapshotDelete 23) (Ok ()) "deletes"
+                }
+            ]
+
+            testSequenced <| testAsync "save list load delete" {
+                Expect.equal (cache.SnapshotSave 29) (Ok ()) "saves"
+                Expect.equal (cache.SnapshotList()) (Ok [|29|]) "lists"
+                Expect.equal (cache.SnapshotLoad 29) (Ok ()) "loads"
+                Expect.equal (cache.SnapshotDelete 29) (Ok ()) "deletes"
+            }
+        ]
     ]
 
 let dataCacheTests =
-    DataCache.createMemory "."
+    let tempDir = tempDir()
+    afterTesting tempDir.Dispose
+    let dataCache = DataCache.createMemory tempDir.Path
+    afterTesting dataCache.Dispose
+    dataCache
     |> dataCacheTestList
     |> testList "dataCache memory"
 
@@ -118,6 +145,9 @@ let databaseTestList (db:Database) = [
 ]
 
 let databaseTests =
-    Database.createMemory "."
+    let tempDir = tempDir()
+    let database = Database.createMemory tempDir.Path
+    afterTesting tempDir.Dispose
+    database
     |> databaseTestList
     |> testList "dataSeriesBase memory"

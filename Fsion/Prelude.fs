@@ -2,7 +2,6 @@
 
 open System
 open System.Threading
-open System.Diagnostics.CodeAnalysis
 
 [<AutoOpen>]
 module Auto =
@@ -10,32 +9,34 @@ module Auto =
     let inline fst3 (i,_,_) = i
     let inline snd3 (_,i,_) = i
     let inline trd (_,_,i) = i
-    let inline zigzag i = (i <<< 1) ^^^ (i >>> 31) |> uint32
-    let inline unzigzag i = int(i >>> 1) ^^^ -int(i &&& 1u)
+    let inline zigzag (i:int) = (i <<< 1) ^^^ (i >>> 31) |> uint32
+    let inline unzigzag (i:uint32) = int(i >>> 1) ^^^ -int(i &&& 1u)
     let inline zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
-    let inline unzigzag64 i = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
+    let inline unzigzag64 (i:uint64) = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
 
-[<Struct;SuppressMessage("NameConventions","TypeNamesMustBePascalCase")>]
-/// A non-empty list
-type 'a list1 = private List1 of 'a list
+//open System.Diagnostics.CodeAnalysis
 
-module List1 =
-    let head (List1 l) = List.head l
-    let tail (List1 l) = List.tail l
-    let init x xs = List1 (x::xs)
-    let cons x (List1 xs) = List1 (x::xs)
-    let tryOfList l = match l with | [] -> None | x::xs -> init x xs |> Some
-    let toList (List1 l) = l
-    let ofOne s = List1 [s]
-    let map mapper (List1 l) = List.map mapper l |> List1
-    let sort (List1 l) = List.sort l |> List1
-    let fold folder state (List1 list) = List.fold folder state list
-    let tryPick chooser (List1 list) = List.tryPick chooser list
-    let tryChoose chooser (List1 list) =
-        match List.choose chooser list with | [] -> None | l -> List1 l |> Some
-    let tryCollect mapping (List1 list) =
-        List.choose mapping list |> List.collect toList |> tryOfList
-    let append (List1 l1) (List1 l2) = List1(l1@l2)
+//[<Struct;SuppressMessage("NameConventions","TypeNamesMustBePascalCase")>]
+///// A non-empty list
+//type 'a list1 = private List1 of 'a list
+
+//module List1 =
+//    let head (List1 l) = List.head l
+//    let tail (List1 l) = List.tail l
+//    let init x xs = List1 (x::xs)
+//    let cons x (List1 xs) = List1 (x::xs)
+//    let tryOfList l = match l with | [] -> None | x::xs -> init x xs |> Some
+//    let toList (List1 l) = l
+//    let ofOne s = List1 [s]
+//    let map mapper (List1 l) = List.map mapper l |> List1
+//    let sort (List1 l) = List.sort l |> List1
+//    let fold folder state (List1 list) = List.fold folder state list
+//    let tryPick chooser (List1 list) = List.tryPick chooser list
+//    let tryChoose chooser (List1 list) =
+//        match List.choose chooser list with | [] -> None | l -> List1 l |> Some
+//    let tryCollect mapping (List1 list) =
+//        List.choose mapping list |> List.collect toList |> tryOfList
+//    let append (List1 l1) (List1 l2) = List1(l1@l2)
 
 module internal File =
     open System.IO
@@ -76,28 +77,19 @@ type private BytePoolBucket = {
     Buffer: byte[][]
 }
 type BytePool private () =
-    [<Literal>]
-    static let numberOfBuckets = 5
-    [<Literal>]
-    static let arraysPerBucket = 50
+    static let rec bucketIndex i j =
+        if i <= 128 then j
+        else bucketIndex (i>>>1) (j+1)
     static let buckets =
-        Array.init numberOfBuckets (fun _ ->
+        Array.init 16 (fun _ ->
             {
                 Count = 0
                 Lock = SpinLock false
-                Buffer = Array.zeroCreate<byte[]> arraysPerBucket
+                Buffer = Array.zeroCreate Environment.ProcessorCount
             }
         )
-    static let bucketIndex i =
-        if i <= 128 then 0
-        elif i <= 256 then 1
-        elif i <= 512 then 2
-        elif i <= 1024 then 3
-        elif i <= 2048 then 4
-        else -1 // TODO: need to do something smart about this
-    
     static member Rent i =
-        let bucketIndex = bucketIndex i
+        let bucketIndex = bucketIndex i 0
         let bucket = buckets.[bucketIndex]
         let lockTaken = ref false
         bucket.Lock.Enter lockTaken
@@ -112,7 +104,7 @@ type BytePool private () =
         finally
             if !lockTaken then bucket.Lock.Exit false
     static member Return (bytes:byte[]) =
-        let bucketIndex = bucketIndex bytes.Length
+        let bucketIndex = bucketIndex bytes.Length 0
         let bucket = buckets.[bucketIndex]
         let lockTaken = ref false
         bucket.Lock.Enter lockTaken
@@ -141,4 +133,3 @@ type BytePool private () =
             Array.Copy(bytes,newBytes,i)
             BytePool.Return bytes
             newBytes
-    
