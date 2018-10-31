@@ -79,6 +79,7 @@ Target.create "ProjectVersion" (fun _ ->
     setProjectVersion "Fsion"
 )
 let build project =
+    DotNetCli.
     DotNet.build (fun p ->
     { p with
         Configuration = DotNet.BuildConfiguration.Custom configuration
@@ -101,16 +102,15 @@ Target.create "RunTest" (fun _ ->
              (project+"/bin/"+configuration+"/netcoreapp2.1/"+project+".dll")
              "--summary"
         |> fun r -> if r.ExitCode<>0 then project+".dll failed" |> failwith
-        let exeName = project+"/bin/"+configuration+"/net461/"+project+".exe"
-        let filename, arguments =
-            if Environment.isWindows then exeName, "--summary"
-            else "mono", exeName + " --summary"
-        Process.shellExec
-          { ExecParams.Empty with
-              Program = filename
-              CommandLine = arguments
-          }
-        |> fun r -> if r<>0 then project+".exe failed" |> failwith
+
+        if Environment.isWindows then
+            Process.shellExec
+              { ExecParams.Empty with
+                  Program =
+                    project+"/bin/"+configuration+"/net461/"+project+".exe"
+                  CommandLine = "--summary"
+              }
+            |> fun r -> if r<>0 then project+".exe failed" |> failwith
 
         project + ".TestResults.xml"
         |> Path.combine (Path.combine __SOURCE_DIRECTORY__ "bin")
