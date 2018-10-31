@@ -76,7 +76,7 @@ type private BytePoolBucket = {
     mutable Lock: SpinLock
     Buffer: byte[][]
 }
-type BytePool private () =
+type internal BytePool private () =
     static let rec bucketIndex i j =
         if i <= 128 then j
         else bucketIndex (i>>>1) (j+1)

@@ -7,8 +7,8 @@ open System.Runtime.CompilerServices
 [<assembly: AssemblyProductAttribute("Fsion")>]
 [<assembly: AssemblyCopyrightAttribute("Copyright 2018")>]
 [<assembly: AssemblyDescriptionAttribute("EAVT (Entity Attribute Value Time) database for F#")>]
-[<assembly: AssemblyVersionAttribute("0.0.7")>]
-[<assembly: AssemblyFileVersionAttribute("0.0.7")>]
+[<assembly: AssemblyVersionAttribute("0.0.8")>]
+[<assembly: AssemblyFileVersionAttribute("0.0.8")>]
 [<assembly: InternalsVisibleToAttribute("Fsion.Tests")>]
 do ()
 
@@ -17,6 +17,6 @@ module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyProduct = "Fsion"
     let [<Literal>] AssemblyCopyright = "Copyright 2018"
     let [<Literal>] AssemblyDescription = "EAVT (Entity Attribute Value Time) database for F#"
-    let [<Literal>] AssemblyVersion = "0.0.7"
-    let [<Literal>] AssemblyFileVersion = "0.0.7"
+    let [<Literal>] AssemblyVersion = "0.0.8"
+    let [<Literal>] AssemblyFileVersion = "0.0.8"
     let [<Literal>] InternalsVisibleTo = "Fsion.Tests"

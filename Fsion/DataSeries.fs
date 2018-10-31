@@ -359,7 +359,7 @@ module internal DataSeries =
 
     
 
-module StreamSerialize =
+module internal StreamSerialize =
     
     let rec private read (s:Stream) bs offset count =
         let bytesRead = s.Read(bs, offset, count)
