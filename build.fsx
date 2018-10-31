@@ -79,7 +79,6 @@ Target.create "ProjectVersion" (fun _ ->
     setProjectVersion "Fsion"
 )
 let build project =
-    DotNetCli.
     DotNet.build (fun p ->
     { p with
         Configuration = DotNet.BuildConfiguration.Custom configuration
