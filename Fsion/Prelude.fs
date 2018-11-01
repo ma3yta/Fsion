@@ -92,26 +92,26 @@ type internal BytePool private () =
         let bucketIndex = bucketIndex i 0
         let bucket = buckets.[bucketIndex]
         let lockTaken = ref false
+        let mutable bs = Unchecked.defaultof<_>
         bucket.Lock.Enter lockTaken
         try
-            if bucket.Count = 0 then
-                Array.zeroCreate (128 <<< bucketIndex)
-            else
-                bucket.Count <- bucket.Count - 1
-                let bs = bucket.Buffer.[bucket.Count]
+            if bucket.Count < bucket.Buffer.Length then
+                bs <- bucket.Buffer.[bucket.Count]
                 bucket.Buffer.[bucket.Count] <- null
-                bs
+                bucket.Count <- bucket.Count + 1
         finally
             if !lockTaken then bucket.Lock.Exit false
+        if isNull bs then Array.zeroCreate (128 <<< bucketIndex)
+        else bs
     static member Return (bytes:byte[]) =
         let bucketIndex = bucketIndex bytes.Length 0
         let bucket = buckets.[bucketIndex]
         let lockTaken = ref false
         bucket.Lock.Enter lockTaken
         try
-            if bucket.Count < bucket.Buffer.Length then
+            if bucket.Count <> 0 then
+                bucket.Count <- bucket.Count - 1
                 bucket.Buffer.[bucket.Count] <- bytes
-                bucket.Count <- bucket.Count + 1
         finally
             if !lockTaken then bucket.Lock.Exit false
     static member ResizeUp bytes i =

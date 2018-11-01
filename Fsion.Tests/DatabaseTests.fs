@@ -112,33 +112,33 @@ let databaseTestList (db:Database) = [
     
     testAsync "nothing" {
         let txData = {
-            Headers = []
-            Creates = []
-            Updates = []
             Text = [|Text.ofString "hi"|]
             Data = [||]
+            Creates = []
+            EntityDatum = []
+            TransactionDatum = []
         }
         Database.setTransaction txData (Time 1L) db
     }
 
     testAsync "create" {
         let txData = {
-            Headers = []
-            Creates = [Entity(EntityType.attribute,1u), Attribute.uri, Date 10u, 0L]
-            Updates = []
             Text = [|Text.ofString "my_uri"|]
             Data = [||]
+            Creates = []
+            EntityDatum = [Entity(EntityType.attribute,1u), Attribute.uri, Date 10u, 0L]
+            TransactionDatum = []
         }
         Database.setTransaction txData (Time 2L) db
     }
 
     testAsync "update" {
         let txData = {
-            Headers = []
-            Creates = []
-            Updates = [Attribute.uri.Entity, Attribute.uri, Date 10u, 0L]
             Text = [|Text.ofString "my_uri2"|]
             Data = [||]
+            Creates = []
+            EntityDatum = [Attribute.uri.Entity, Attribute.uri, Date 10u, 0L]
+            TransactionDatum = []
         }
         Database.setTransaction txData (Time 2L) db
     }

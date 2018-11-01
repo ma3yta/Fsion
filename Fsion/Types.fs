@@ -74,9 +74,9 @@ type DataId =
 
 
 type TransactionData = {
-    Headers: (Attribute * int64) list
-    Creates: (Entity * Attribute * Date * int64) list
-    Updates: (Entity * Attribute * Date * int64) list
     Text: Text[]
     Data: byte[][]
+    Creates: Entity list
+    EntityDatum: (Entity * Attribute * Date * int64) list
+    TransactionDatum: (Attribute * int64) list
 }

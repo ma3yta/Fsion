@@ -205,16 +205,18 @@ module Database =
                     attributeArray.[attributeArray.Length-1] <- attributeId
                     db.IndexEntityTypeAttribute.[int etId] <- attributeArray
             
+            //Seq.iter ups txData.Updates
+
             let date = Time.toDate time
             let txEntity = Entity(EntityType.tx, txId)
 
-            txData.Headers
+            txData.TransactionDatum
             |> Seq.append [Attribute.time, Time.toInt64 time]
             |> Seq.map (fun (a,v) -> txEntity,a,date,v)
             |> Seq.iter ups
 
-            Seq.iter ups txData.Creates
-            Seq.iter ups txData.Updates
+            Seq.iter ups txData.EntityDatum
+            
 
             db.IndexEntityTypeCount.[txEntityTypeIndex] <- txId + 1u
         )
