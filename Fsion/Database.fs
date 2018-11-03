@@ -9,9 +9,9 @@ open Fsion
 
 type DataCache =
     inherit IDisposable
-    abstract member Get : (Entity * Attribute) -> DataSeries option
-    abstract member Set : (Entity * Attribute) -> DataSeries -> unit
-    abstract member Ups : (Entity * Attribute) -> Datum -> unit
+    abstract member Get : (Entity * AttributeId) -> DataSeries option
+    abstract member Set : (Entity * AttributeId) -> DataSeries -> unit
+    abstract member Ups : (Entity * AttributeId) -> Datum -> unit
     abstract member GetTextId : Text -> TextId
     abstract member GetText : TextId -> Text
     abstract member GetDataId : byte[] -> DataId
@@ -24,7 +24,7 @@ type DataCache =
 module DataCache =
 
     let createMemory (snapshotPath:string) =
-        let dataSeriesDictionary = Dictionary<Entity * Attribute, DataSeries>()
+        let dataSeriesDictionary = Dictionary<Entity * AttributeId, DataSeries>()
         let dataSeriesLock = new ReaderWriterLockSlim()
         let stringDictionary = Dictionary StringComparer.Ordinal
         let texts = ResizeArray()
@@ -195,10 +195,10 @@ module Database =
             
             let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
             
-            let ups (Entity(EntityType etId,_) as entity,Attribute attributeId,date,value) =
+            let ups (Entity(EntityType etId,_) as entity,AttributeId attributeId,date,value) =
                 let mutable attributeArray =
                     &db.IndexEntityTypeAttribute.[int etId]
-                db.DataCache.Ups (entity,Attribute attributeId)
+                db.DataCache.Ups (entity,AttributeId attributeId)
                     (date,Tx txId,value)
                 if Array.contains attributeId attributeArray |> not then
                     Array.Resize(&attributeArray, attributeArray.Length+1)
@@ -211,7 +211,7 @@ module Database =
             let txEntity = Entity(EntityType.tx, txId)
 
             txData.TransactionDatum
-            |> Seq.append [Attribute.time, Time.toInt64 time]
+            |> Seq.append [AttributeId.time, Time.toInt64 time]
             |> Seq.map (fun (a,v) -> txEntity,a,date,v)
             |> Seq.iter ups
 

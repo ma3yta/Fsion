@@ -210,12 +210,12 @@ module internal ArraySerialize =
         let eid,i = uint32Get (bs,i)
         Entity(et,eid), i
 
-    let attributeSet (Attribute aid) (bs,i) =
+    let attributeSet (AttributeId aid) (bs,i) =
         uint32Set aid (bs,i)
 
     let attributeGet (bs,i) =
         let eid,i = uint32Get (bs,i)
-        Attribute eid, i
+        AttributeId eid, i
 
 
 [<Struct>]
@@ -453,14 +453,14 @@ module internal StreamSerialize =
         let eid = uint32Get s
         Entity(et,eid)
 
-    let attributeSet (s:Stream) (Attribute aid) =
+    let attributeSet (s:Stream) (AttributeId aid) =
         uint32Set s aid
 
     let attributeGet (s:Stream) =
         let aid = uint32Get s
-        Attribute aid
+        AttributeId aid
 
-    let entityAttributeSet (s:Stream) ((entity,attribute):Entity * Attribute) =
+    let entityAttributeSet (s:Stream) ((entity,attribute):Entity * AttributeId) =
         let bs,i =
             ArraySerialize.entitySet entity ArraySerialize.empty
             |> ArraySerialize.attributeSet attribute
@@ -500,7 +500,7 @@ module internal StreamSerialize =
         
         let entityDatum = transactionData.EntityDatum
         uint32Set s (uint32 entityDatum.Length)
-        List.fold (fun (pet,peid,pa,pd,pv) (Entity(EntityType et,eid),Attribute a,Date d,v) ->
+        List.fold (fun (pet,peid,pa,pd,pv) (Entity(EntityType et,eid),AttributeId a,Date d,v) ->
             uint32Set s (et-pet)
             uint32Set s (eid-peid)
             uint32Set s (a-pa)
@@ -512,7 +512,7 @@ module internal StreamSerialize =
 
         let transactionDatum = transactionData.TransactionDatum
         uint32Set s (uint32 transactionDatum.Length)
-        List.iter (fun (Attribute a,d) ->
+        List.iter (fun (AttributeId a,d) ->
             uint32Set s a
             uint64Set s (zigzag64 d)
         ) transactionDatum
@@ -533,7 +533,7 @@ module internal StreamSerialize =
                 Seq.init l (fun _ -> uint32Get s, uint32Get s, uint32Get s, uint32Get s, uint64Get s)
                 |> Seq.scan (fun (pet,peid,pa,pd,pv) (et,eid,a,d,v) -> pet+et,peid+eid,pa+a,pd+d,pv+v) (0u,0u,0u,0u,0uL)
                 |> Seq.tail
-                |> Seq.map (fun (et,eid,a,d,v) -> Entity(EntityType et,eid), Attribute a, Date d, unzigzag64 v)
+                |> Seq.map (fun (et,eid,a,d,v) -> Entity(EntityType et,eid), AttributeId a, Date d, unzigzag64 v)
                 |> List.ofSeq
             TransactionDatum =
                 let l = uint32Get s |> int

@@ -10,16 +10,16 @@ let dataCacheTestList (cache:DataCache) = [
 
             testAsync "set get" {
                 let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                cache.Set (Entity(EntityType.attribute,1u), Attribute.time) dataSeries
-                let actual = cache.Get (Entity(EntityType.attribute,1u), Attribute.time)
+                cache.Set (Entity(EntityType.attribute,1u), AttributeId.time) dataSeries
+                let actual = cache.Get (Entity(EntityType.attribute,1u), AttributeId.time)
                 Expect.equal actual (Some dataSeries) "bytes 1"
             }
 
             testAsync "ups" {
                 let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                cache.Set (Entity(EntityType.attribute,2u), Attribute.time) dataSeries
-                cache.Ups (Entity(EntityType.attribute,2u), Attribute.time) (Date 2u,Tx 2u,2L)
-                let actual = cache.Get (Entity(EntityType.attribute,2u), Attribute.time)
+                cache.Set (Entity(EntityType.attribute,2u), AttributeId.time) dataSeries
+                cache.Ups (Entity(EntityType.attribute,2u), AttributeId.time) (Date 2u,Tx 2u,2L)
+                let actual = cache.Get (Entity(EntityType.attribute,2u), AttributeId.time)
                 let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries |> Some
                 Expect.equal actual expected "append"
             }
@@ -126,7 +126,7 @@ let databaseTestList (db:Database) = [
             Text = [|Text.ofString "my_uri"|]
             Data = [||]
             Creates = []
-            EntityDatum = [Entity(EntityType.attribute,1u), Attribute.uri, Date 10u, 0L]
+            EntityDatum = [Entity(EntityType.attribute,1u), AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
         Database.setTransaction txData (Time 2L) db
@@ -137,7 +137,7 @@ let databaseTestList (db:Database) = [
             Text = [|Text.ofString "my_uri2"|]
             Data = [||]
             Creates = []
-            EntityDatum = [Attribute.uri.Entity, Attribute.uri, Date 10u, 0L]
+            EntityDatum = [AttributeId.uri.Entity, AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
         Database.setTransaction txData (Time 2L) db

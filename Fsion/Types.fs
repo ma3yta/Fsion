@@ -56,12 +56,12 @@ type Entity =
     | Entity of EntityType * uint32
 
 [<Struct>]
-type Attribute =
-    | Attribute of uint32
-    static member uri = Attribute 0u
-    static member time = Attribute 1u
+type AttributeId =
+    | AttributeId of uint32
+    static member uri = AttributeId 0u
+    static member time = AttributeId 1u
     member a.Entity =
-        let (Attribute i) = a
+        let (AttributeId i) = a
         Entity(EntityType.attribute, i)
 
 type TextId =
@@ -72,11 +72,14 @@ type DataId =
     internal
     | DataId of int
 
+type Uri =
+    internal
+    | Uri of uint32
 
 type TransactionData = {
     Text: Text[]
     Data: byte[][]
     Creates: Entity list
-    EntityDatum: (Entity * Attribute * Date * int64) list
-    TransactionDatum: (Attribute * int64) list
+    EntityDatum: (Entity * AttributeId * Date * int64) list
+    TransactionDatum: (AttributeId * int64) list
 }

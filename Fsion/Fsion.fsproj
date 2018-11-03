@@ -16,6 +16,7 @@
     <Compile Include="Types.fs" />
     <Compile Include="DataSeries.fs" />
     <Compile Include="Database.fs" />
+    <Compile Include="Attribute.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
