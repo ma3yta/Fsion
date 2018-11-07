@@ -66,11 +66,11 @@ type AttributeId =
 
 type TextId =
     internal
-    | TextId of int
+    | TextId of uint32
 
 type DataId =
     internal
-    | DataId of int
+    | DataId of uint32
 
 type Uri =
     internal

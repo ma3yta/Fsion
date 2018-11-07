@@ -60,16 +60,16 @@ module DataCache =
             member __.GetText (TextId i) =
                 textLock.EnterReadLock()
                 try
-                    texts.[i]
+                    texts.[int i]
                 finally
                     textLock.ExitReadLock()
             member __.GetTextId (Text s) =
                 textLock.EnterWriteLock()
                 try
-                    let mutable i = 0
+                    let mutable i = 0u
                     if stringDictionary.TryGetValue(s, &i) then TextId i
                     else
-                        i <- texts.Count
+                        i <- uint32 texts.Count
                         stringDictionary.Add(s,i)
                         texts.Add (Text s)
                         TextId i
@@ -78,13 +78,13 @@ module DataCache =
             member __.GetData (DataId i) =
                 byteLock.EnterReadLock()
                 try
-                    bytes.[i]
+                    bytes.[int i]
                 finally
                     byteLock.ExitReadLock()
             member __.GetDataId bs =
                 byteLock.EnterWriteLock()
                 try
-                    let i = bytes.Count
+                    let i = uint32 bytes.Count
                     bytes.Add bs
                     DataId i
                 finally

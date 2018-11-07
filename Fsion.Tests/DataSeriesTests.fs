@@ -74,7 +74,7 @@ let arraySerializeTests =
     let testRoundtrip serializeSet serializeGet i =
             let b,_ = serializeSet i ArraySerialize.empty
             let j,_ = serializeGet (b,0)
-            Expect.equal j i "array roundtrip"
+            Expect.equal j i "array serialize roundtrip"
 
     testList "array serialize" [
 
@@ -377,7 +377,7 @@ let streamSerializeTests =
             serializeSet ms i
             ms.Position <- 0L
             let j = serializeGet ms
-            Expect.equal j i "stream roundtrip"
+            Expect.equal j i "stream serialize roundtrip"
 
     testList "stream serialize" [
 

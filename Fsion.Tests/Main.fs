@@ -12,6 +12,7 @@ let tests =
         SerializeTests.streamSerializeTests
         DatabaseTests.dataCacheTests
         DatabaseTests.databaseTests
+        AttributeTests.attributeTestList
     ]
 
 [<EntryPoint;STAThread>]
