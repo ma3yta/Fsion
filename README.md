@@ -60,3 +60,9 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
     - Permissions
     - Scheduling
     - Accounting attribute functions with aggregation
+    
+## Query language ideas
+
+```
+person(height>160) { name height homeworld(population<1e9) { name created } films(title='A New Hope') { } }
+```
