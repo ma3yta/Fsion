@@ -39,12 +39,10 @@ let licenceUrl = "https://github.com/AnthonyLloyd/Fsion/blob/master/LICENSE"
 let copyright = "Copyright 2018"
 let mutable dotnetExePath = "dotnet"
 
-
 BuildServer.install [
     Travis.Installer
     AppVeyor.Installer
 ]
-
 
 Target.create "Clean" (fun _ ->
     !!"./**/bin/" ++ "./**/obj/" |> Shell.cleanDirs
@@ -89,27 +87,20 @@ let build project =
 Target.create "Build" (fun _ ->
     build "Fsion/Fsion.fsproj"
 )
-
-Target.create "BuildTest" (fun _ ->
-    build "Fsion.Tests/Fsion.Tests.fsproj"
-)
+let isOk (pr:ProcessResult) =
+    if not pr.OK then failwithf "%A" pr
 
 Target.create "RunTest" (fun _ ->
 
     let runTest project =
         DotNet.exec (DotNet.Options.withDotNetCliPath dotnetExePath)
-             (project+"/bin/"+configuration+"/netcoreapp2.1/"+project+".dll")
-             "--summary"
-        |> fun r -> if r.ExitCode<>0 then project+".dll failed" |> failwith
+             "run" ("-f netcoreapp2.1 -p " + project)
+        |> isOk
 
         if Environment.isWindows then
-            Process.shellExec
-              { ExecParams.Empty with
-                  Program =
-                    project+"/bin/"+configuration+"/net461/"+project+".exe"
-                  CommandLine = "--summary"
-              }
-            |> fun r -> if r<>0 then project+".exe failed" |> failwith
+            DotNet.exec (DotNet.Options.withDotNetCliPath dotnetExePath)
+             "run" ("-f net472 -p " + project)
+            |> isOk
 
         project + ".TestResults.xml"
         |> Path.combine (Path.combine __SOURCE_DIRECTORY__ "bin")
@@ -180,7 +171,6 @@ Target.create "All" ignore
 ==> "AssemblyInfo"
 ==> "ProjectVersion"
 ==> "Build"
-==> "BuildTest"
 ==> "RunTest"
 ==> "Pack"
 ==> "All"

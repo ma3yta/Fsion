@@ -1,0 +1,3 @@
+﻿<DnaLibrary Name="Fsion Excel Add-In" RuntimeVersion="v4.0">
+  <ExternalLibrary Path="Fsion.Excel.dll" ExplicitExports="false" LoadFromBytes="false" Pack="false" />
+</DnaLibrary>
