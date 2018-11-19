@@ -4,35 +4,6 @@ open System
 open Fsion
 open ExcelDna.Integration
 
-type EntityNew =
-    | Existing of Entity
-    | New of Entity
-
-type EncodedValue =
-    | EncodedInt of int64
-    | EncodedText of Text
-    | EncodedByte of byte[]
-
-type DecodedValue =
-    | DecodedObj of obj
-    | DecodedText of int
-    | DecodedByte of int
-
-type SelectAPI =
-    abstract member Attribute : Text -> Result<AttributeId,Text>
-    abstract member Entity : Text -> Result<EntityNew,Text> // "trade/1234" "trade/new1"
-    abstract member Encode : AttributeId -> obj -> Result<EncodedValue,Text>
-    abstract member Decode : AttributeId -> int64 -> Result<DecodedValue,Text>
-
-type QueryAPI =
-    abstract member Table : Text -> AttributeId[] * int64[,] * Text[] * byte[][]
-
-type TransactionAPI =
-    abstract member Set : TransactionData -> Text
-
-//type ObervableAPI =
-//    abstract member Attribute : string -> AttributeId option
-
 type private FsionFunction() =
     inherit ExcelFunctionAttribute(
         Category = "Fsion",
@@ -42,7 +13,7 @@ type private FsionFunction() =
 
 module API =
 
-    let selectAPI = Unchecked.defaultof<SelectAPI>
+    let schemaAPI() = Unchecked.defaultof<SchemaAPI>
     let queryAPI = Unchecked.defaultof<QueryAPI>
 
     [<Literal>]
@@ -53,12 +24,11 @@ module API =
         match Text.ofString query with
         | None -> Array2D.create 1 1 ("query missing" :> obj)
         | Some t ->
-            let attributes, data, texts, bytes = queryAPI.Table t
+            let schemaAPI = schemaAPI()
+            let attributes, data = queryAPI.Table t
             Array2D.mapi (fun i _ i64 ->
-                match selectAPI.Decode attributes.[i] i64 with
-                | Ok(DecodedObj o) -> o
-                | Ok(DecodedText i) -> texts.[i] |> Text.toString :> obj
-                | Ok(DecodedByte i) -> bytes.[i] :> obj
+                match schemaAPI.Decode attributes.[i] i64 with
+                | Ok o -> o
                 | Error e -> "#ERR - " + Text.toString e :> obj
             ) data
 
@@ -66,42 +36,23 @@ module API =
 
     [<FsionFunction(HelpTopic = wikiRoot + "FCommand", Description = "fsion command")>]
     let FsionSet ([<ExcelArgument(Description="Entity, Attribute, Date, Value table")>] table:obj[,]) =
-        
-        let creates = new ResizeArray<_>()
-        let entity = memoize (fun i ->
-            selectAPI.Entity i
-            |> Result.map (function
-                | Existing e -> e
-                | New e -> creates.Add e; e
-            )
-        )
-        let attribute = memoize selectAPI.Attribute
-        
-        let texts = new ResizeArray<_>()
-        let bytes = new ResizeArray<_>()
+        let schemaAPI = schemaAPI()
 
-        let value (a:AttributeId) (o:obj) =
-            selectAPI.Encode a o
-            |> Result.map (
-                function
-                | EncodedInt i -> i
-                | EncodedText t ->
-                    texts.Add t
-                    int64(texts.Count-1)
-                | EncodedByte b ->
-                    bytes.Add b
-                    int64(texts.Count-1)
-            )
+        let parseDatum (uri:obj) (attr:obj) (dt:obj) (value:obj) =
+            let attribute =
+                tryCast attr
+                |> Option.bind Text.ofString
+                |> Result.ofOption "Attribute not a string"
+                |> Result.bind schemaAPI.Attribute
 
-        let parseDatum c0 c1 c2 c3 : Result<Datum,_> =
-            let attribute = tryCast c1 |> Result.ofOption "Attribute not text" |> Result.bind attribute
             Ok (fun e a d v -> e,a,d,v)
-            <*> (tryCast c0 |> Result.ofOption "Uri not text" |> Result.bind entity)
+            <*> (tryCast uri |> Option.bind Text.ofString
+                 |> Result.ofOption "Uri not a string" |> Result.bind schemaAPI.Entity)
             <*> attribute
-            <*> (tryCast c2 |> Result.ofOption "Date not valid" |> Result.map Date.ofDateTime)
-            <*> (if isNull c3 then Text.ofString "Value is null" |> Option.get |> Error
+            <*> (tryCast dt |> Result.ofOption "Date not valid" |> Result.map Date.ofDateTime)
+            <*> (if isNull value then Text.ofString "Value is null" |> Option.get |> Error
                  else match attribute with
-                      | Ok a -> value a c3
+                      | Ok a -> schemaAPI.Encode a value
                       | Error _ -> Ok 0L
                 )
         
@@ -126,9 +77,9 @@ module API =
             {
                 TransactionDatum = []
                 EntityDatum = datums
-                Creates = creates.ToArray()
-                Text = texts.ToArray()
-                Data = bytes.ToArray()
+                Creates = schemaAPI.NewEntity
+                Text = schemaAPI.NewText
+                Data = schemaAPI.NewByte
             }
-            |> transactionAPI.Set
+            |> transactionAPI.Commit
             |> Text.toString

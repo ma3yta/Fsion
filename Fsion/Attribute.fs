@@ -1,5 +1,6 @@
 ﻿namespace Fsion
 
+[<NoComparison;NoEquality>]
 type 'a ValueType = internal {
     ToInt: 'a option -> int64
     OfInt: int64 -> 'a option
@@ -100,6 +101,7 @@ module ValueType =
             | i -> DataId(zigzag(int32 i) - 1u) |> Some
     }
 
+[<NoComparison;NoEquality>]
 type Attribute<'a> = {
     Id: AttributeId
     ValueType: ValueType<'a>
@@ -121,3 +123,37 @@ module Attribute =
         |> Option.map (DataSeries.get d tx)
         |> Option.bind (fun (d,t,v) ->
             a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))
+
+    let toEntity (AttributeId aid) =
+        Entity(EntityType.attribute, aid)
+
+    let validateName (Text t) =
+        let inline isLetter c = c>='a' && c<='z'
+        let inline isNotLetter c = c<'a' || c>'z'
+        let inline isNotDigit c = c>'9' || c<'0'
+        let inline isUnderscore c = c='_'
+        let rec check i prevUnderscore =
+            if i = t.Length then not prevUnderscore
+            else
+                let c = t.[i]
+                if   isNotLetter c
+                  && isNotDigit c 
+                  && (prevUnderscore || not(isUnderscore c)) then false
+                else check (i+1) (isUnderscore c)
+        isLetter t.[0] && check 1 false
+
+
+type SchemaAPI =
+    abstract member Attribute : Text -> Result<AttributeId,Text> // "trader" "fund_manager"
+    abstract member Entity : Text -> Result<Entity,Text> // "trade/1234" "trade/new1" "party/citibank"
+    abstract member Encode : AttributeId -> obj -> Result<int64,Text>
+    abstract member Decode : AttributeId -> int64 -> Result<obj,Text>
+    abstract member NewEntity : Entity[]
+    abstract member NewText : Text[]
+    abstract member NewByte : byte[][]
+
+type QueryAPI =
+    abstract member Table : Text -> AttributeId[] * int64[,] // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
+
+type TransactionAPI =
+    abstract member Commit : TransactionData -> Text

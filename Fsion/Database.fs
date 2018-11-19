@@ -168,7 +168,7 @@ module TransationLog =
                 invalidOp "not implemented"
         }
 
-
+[<NoComparison;NoEquality>]
 type Database = private {
     DataCache : DataCache
     mutable IndexEntityTypeCount : uint32 array
@@ -204,8 +204,6 @@ module Database =
                     Array.Resize(&attributeArray, attributeArray.Length+1)
                     attributeArray.[attributeArray.Length-1] <- attributeId
                     db.IndexEntityTypeAttribute.[int etId] <- attributeArray
-            
-            //Seq.iter ups txData.Updates
 
             let date = Time.toDate time
             let txEntity = Entity(EntityType.tx, txId)

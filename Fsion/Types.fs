@@ -6,6 +6,8 @@ open System
 type Text =
     internal
     | Text of string
+    static member (+)(s:string,Text t) = Text(s+t)
+    static member (+)(Text t,s:string) = Text(t+s)
 
 module Text =
     let ofString s =
@@ -108,9 +110,6 @@ type AttributeId =
     | AttributeId of uint32
     static member uri = AttributeId 0u
     static member time = AttributeId 1u
-    member a.Entity =
-        let (AttributeId i) = a
-        Entity(EntityType.attribute, i)
 
 type TextId =
     internal

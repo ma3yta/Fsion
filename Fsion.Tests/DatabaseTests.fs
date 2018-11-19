@@ -136,7 +136,7 @@ let databaseTestList (db:Database) = [
             Text = [|Text "my_uri2"|]
             Data = [||]
             Creates = [||]
-            EntityDatum = [AttributeId.uri.Entity, AttributeId.uri, Date 10u, 0L]
+            EntityDatum = [Attribute.toEntity AttributeId.uri, AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
         Database.setTransaction txData (Time 2L) db

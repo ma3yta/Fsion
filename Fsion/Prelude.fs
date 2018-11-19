@@ -60,6 +60,7 @@ module internal File =
             load (Array.zeroCreate l) 0 l |> Ok
         with e -> Error e
 
+[<NoComparison;NoEquality>]
 type private BytePoolBucket = {
     mutable Count: int
     mutable Lock: SpinLock
