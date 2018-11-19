@@ -13,7 +13,6 @@
     </Content>
     <Compile Include="API.fs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\Fsion\Fsion.fsproj" />
   </ItemGroup>
