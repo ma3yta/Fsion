@@ -11,7 +11,7 @@ type DataCache =
     inherit IDisposable
     abstract member Get : (Entity * AttributeId) -> DataSeries option
     abstract member Set : (Entity * AttributeId) -> DataSeries -> unit
-    abstract member Ups : (Entity * AttributeId) -> Datum -> unit
+    abstract member Ups : (Entity * AttributeId) -> (Date * Tx * int64) -> unit
     abstract member GetTextId : Text -> TextId
     abstract member GetText : TextId -> Text
     abstract member GetDataId : byte[] -> DataId

@@ -2,6 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
+    <WarningLevel>5</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="..\packages\ExcelDna.AddIn\tools\ExcelDna64.xll" Link="Fsion.Excel.xll">

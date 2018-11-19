@@ -397,7 +397,7 @@ let streamSerializeTests =
             testRoundtrip StreamSerialize.bytesSet StreamSerialize.bytesGet i
         )
 
-        testProp "text list roundtrip" (fun s ->
+        testProp "text list roundtrip" (fun texts ->
             
             let textListSet ms (l:Text list) =
                 let a = ResizeArray l
@@ -408,8 +408,7 @@ let streamSerializeTests =
                 StreamSerialize.textListLoad ms a
                 List.ofSeq a
 
-            List.map Text.ofString s
-            |> testRoundtrip textListSet textListGet
+            testRoundtrip textListSet textListGet texts
         )
 
         testProp "bytes list roundtrip" (fun bytes ->

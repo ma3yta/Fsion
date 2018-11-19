@@ -28,28 +28,27 @@ let dataCacheTestList (cache:DataCache) = [
         testList "text" [
 
             testAsync "same id" {
-                let expected = cache.GetTextId (Text.ofString "hi you")
-                let actual = cache.GetTextId (Text.ofString " hi you ")
+                let expected = Text.ofString "hi you" |> Option.get |> cache.GetTextId
+                let actual = Text.ofString " hi you "|> Option.get |> cache.GetTextId
                 Expect.equal actual expected "same id"
             }
 
             testAsync "diff id" {
-                let expected = cache.GetTextId (Text.ofString "hi you")
-                let actual = cache.GetTextId (Text.ofString "hi there")
+                let expected = cache.GetTextId (Text "hi you")
+                let actual = cache.GetTextId (Text "hi there")
                 Expect.notEqual actual expected "diff id"
             }
 
             testAsync "case sensitive" {
-                let expected = cache.GetTextId (Text.ofString "hi you")
-                let actual = cache.GetTextId (Text.ofString "hi You")
+                let expected = Text "hi you" |> cache.GetTextId
+                let actual = Text "hi You" |> cache.GetTextId
                 Expect.notEqual actual expected "case"
             }
         
-            testProp "roundtrip" (fun (strings:string[]) ->
-                let expected = Array.Parallel.map Text.ofString strings
-                let textIds = Array.Parallel.map cache.GetTextId expected
+            testProp "roundtrip" (fun (texts:Text[]) ->
+                let textIds = Array.Parallel.map cache.GetTextId texts
                 let actual = Array.Parallel.map cache.GetText textIds
-                Expect.equal actual expected "strings same"
+                Expect.equal actual texts "strings same"
             )
         ]
 
@@ -112,9 +111,9 @@ let databaseTestList (db:Database) = [
     
     testAsync "nothing" {
         let txData = {
-            Text = [|Text.ofString "hi"|]
+            Text = [|Text "hi"|]
             Data = [||]
-            Creates = []
+            Creates = [||]
             EntityDatum = []
             TransactionDatum = []
         }
@@ -123,9 +122,9 @@ let databaseTestList (db:Database) = [
 
     testAsync "create" {
         let txData = {
-            Text = [|Text.ofString "my_uri"|]
+            Text = [|Text "my_uri"|]
             Data = [||]
-            Creates = []
+            Creates = [||]
             EntityDatum = [Entity(EntityType.attribute,1u), AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
@@ -134,9 +133,9 @@ let databaseTestList (db:Database) = [
 
     testAsync "update" {
         let txData = {
-            Text = [|Text.ofString "my_uri2"|]
+            Text = [|Text "my_uri2"|]
             Data = [||]
-            Creates = []
+            Creates = [||]
             EntityDatum = [AttributeId.uri.Entity, AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }

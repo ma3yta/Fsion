@@ -62,7 +62,7 @@ let basicTypesTests =
 
             testAsync "trim same string" {
                 let expected = "my string"
-                let actual = Text.ofString expected |> Text.toString
+                let actual = Text.ofString expected |> Option.get |> Text.toString
                 let same = LanguagePrimitives.PhysicalEquality actual expected
                 Expect.isTrue same "same"
             }

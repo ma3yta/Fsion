@@ -4,14 +4,64 @@ open System
 
 [<Struct>]
 type Text =
-    private
+    internal
     | Text of string
 
 module Text =
     let ofString s =
-        if String.IsNullOrWhiteSpace s then Text String.Empty
-        else Text (s.Trim())
+        if String.IsNullOrWhiteSpace s then None
+        else s.Trim() |> Text |> Some
     let toString (Text s) = s
+
+type ResizeMap<'a,'b> = Collections.Generic.Dictionary<'a,'b>
+
+module Result =
+    let apply f x =
+        match f,x with
+        | Ok f, Ok v -> Ok (f v)
+        | Error f, Ok _ -> Error f
+        | Ok _, Error f -> Error [f]
+        | Error f1, Error f2 -> Error (f2::f1)
+    let ofOption format =
+        let sb = Text.StringBuilder()
+        Printf.kbprintf (fun () ->
+            function
+            | Some x -> Ok x
+            | None -> sb.ToString() |> Text |> Error
+        ) sb format
+    let sequence list =
+        List.fold (fun s i ->
+            match s,i with
+            | Ok l, Ok h -> Ok (h::l)
+            | Error l, Ok _ -> Error l
+            | Ok _, Error e -> Error [e]
+            | Error l, Error h -> Error (h::l)
+        ) (Ok []) list
+
+[<AutoOpen>]
+module Auto =
+    let inline mapFst f (a,b) = f a,b
+    let inline fst3 (i,_,_) = i
+    let inline snd3 (_,i,_) = i
+    let inline trd (_,_,i) = i
+    let (<*>) = Result.apply
+    let inline zigzag (i:int) = (i <<< 1) ^^^ (i >>> 31) |> uint32
+    let inline unzigzag (i:uint32) = int(i >>> 1) ^^^ -int(i &&& 1u)
+    let inline zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
+    let inline unzigzag64 (i:uint64) = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
+    let tryCast (o:obj) : 'a option =
+        match o with
+        | :? 'a as a -> Some a
+        | _ -> None
+    let memoize (f:'a->'b) =
+        let d = ResizeMap HashIdentity.Structural
+        fun a ->
+            let mutable b = Unchecked.defaultof<_>
+            if d.TryGetValue(a,&b) then b
+            else
+                b <- f a
+                d.Add(a,b)
+                b
 
 [<Struct>]
 type Date =
@@ -23,7 +73,7 @@ type Date =
 module Date =
     let minValue = Date 0u
     let maxValue = Date UInt32.MaxValue
-    let fromDateTime (d:DateTime) =
+    let ofDateTime (d:DateTime) =
         d.Ticks / TimeSpan.TicksPerDay |> uint32 |> Date
 
 [<Struct>]
@@ -41,8 +91,6 @@ type Tx = Tx of uint32
     
 module Tx =
     let maxValue = Tx UInt32.MaxValue
-    
-type Datum = Date * Tx * int64
 
 [<Struct>]
 type EntityType =
@@ -76,10 +124,12 @@ type Uri =
     internal
     | Uri of uint32
 
+type Datum = Entity * AttributeId * Date * int64
+
 type TransactionData = {
+    TransactionDatum: (AttributeId * int64) list
+    EntityDatum: Datum list
+    Creates: Entity[]
     Text: Text[]
     Data: byte[][]
-    Creates: Entity list
-    EntityDatum: (Entity * AttributeId * Date * int64) list
-    TransactionDatum: (AttributeId * int64) list
 }

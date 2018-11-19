@@ -326,11 +326,11 @@ module internal DataSeries =
             (currentDate,currentValue,currentTx)
 
     /// Create a new datum from an add set datum.
-    let setAdd (date,tx,newValue:uint64) : Datum =
+    let setAdd (date,tx,newValue:uint64) =
         date,tx,int64 newValue
 
     /// Create a new DataSetSeries from a remove set datum and DataSetSeries.
-    let setRemove (date,tx,newValue:uint64) : Datum =
+    let setRemove (date,tx,newValue:uint64) =
         date,tx,~~~(int64 newValue)
 
     /// Returns the closest data set from a DataSetSeries for a queryDate and query transaction.
@@ -496,7 +496,7 @@ module internal StreamSerialize =
 
         let creates = transactionData.Creates
         uint32Set s (uint32 creates.Length)
-        List.iter (entitySet s) creates
+        Array.iter (entitySet s) creates
         
         let entityDatum = transactionData.EntityDatum
         uint32Set s (uint32 entityDatum.Length)
@@ -527,7 +527,7 @@ module internal StreamSerialize =
                 Array.init l (fun _ -> bytesGet s)
             Creates =
                 let l = uint32Get s |> int
-                List.init l (fun _ -> entityGet s)
+                Array.init l (fun _ -> entityGet s)
             EntityDatum =
                 let l = uint32Get s |> int
                 Seq.init l (fun _ -> uint32Get s, uint32Get s, uint32Get s, uint32Get s, uint64Get s)

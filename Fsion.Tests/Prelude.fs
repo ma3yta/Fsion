@@ -15,7 +15,11 @@ module Gen =
             (fun (DoNotSize a) -> float a / maxValue |> Float01)
             (fun (Float01 f) -> f * maxValue + 0.5 |> uint64 |> DoNotSize)
             Arb.from
-    let textArb = Arb.convert Text.ofString Text.toString Arb.from
+    let textArb =
+        Arb.convert
+            (fun (NonWhiteSpaceString s) -> Text.ofString s |> Option.get)
+            (Text.toString >> NonWhiteSpaceString)
+            Arb.from
 
     let addToConfig config = {
         config with

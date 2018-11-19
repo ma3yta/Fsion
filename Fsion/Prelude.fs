@@ -3,17 +3,6 @@
 open System
 open System.Threading
 
-[<AutoOpen>]
-module Auto =
-    let inline mapFst f (a,b) = f a,b
-    let inline fst3 (i,_,_) = i
-    let inline snd3 (_,i,_) = i
-    let inline trd (_,_,i) = i
-    let inline zigzag (i:int) = (i <<< 1) ^^^ (i >>> 31) |> uint32
-    let inline unzigzag (i:uint32) = int(i >>> 1) ^^^ -int(i &&& 1u)
-    let inline zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
-    let inline unzigzag64 (i:uint64) = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
-
 //open System.Diagnostics.CodeAnalysis
 
 //[<Struct;SuppressMessage("NameConventions","TypeNamesMustBePascalCase")>]
