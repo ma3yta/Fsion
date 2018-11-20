@@ -101,33 +101,33 @@ module ValueType =
             | i -> DataId(zigzag(int32 i) - 1u) |> Some
     }
 
-[<NoComparison;NoEquality>]
-type Attribute<'a> = {
-    Id: AttributeId
-    ValueType: ValueType<'a>
-}
+//[<NoComparison;NoEquality>]
+//type Attribute<'a> = {
+//    Id: AttributeId
+//    ValueType: ValueType<'a>
+//}
 
 // TODO: sets, typed entities, decimal
 
-module Attribute =
-    let fromId<'a> (db:Database) (AttributeId aid) : Attribute<'a> =
-        failwith "hi"
-    let fromUri<'a> (db:Database) (Uri uri) : Attribute<'a> =
-        failwith "hi"
+module Selector =
 
-    let uri : Attribute<Uri> = { Id = AttributeId 0u; ValueType = ValueType.Uri }
-    let time : Attribute<Time> = { Id = AttributeId 1u; ValueType = ValueType.Time }
+    [<NoComparison>]
+    type Context =
+        | Local of Database
 
-    let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
-        db.DataCache.Get (e,a.Id)
-        |> Option.map (DataSeries.get d tx)
-        |> Option.bind (fun (d,t,v) ->
-            a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))
+    //let uri : Attribute<Uri> = { Id = AttributeId 0u; ValueType = ValueType.Uri }
+    //let time : Attribute<Time> = { Id = AttributeId 1u; ValueType = ValueType.Time }
+
+    //let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
+    //    db.Get (e,a.Id)
+    //    |> Option.map (DataSeries.get d tx)
+    //    |> Option.bind (fun (d,t,v) ->
+    //        a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))
 
     let toEntity (AttributeId aid) =
         Entity(EntityType.attribute, aid)
 
-    let validateName (Text t) =
+    let internal validateName (Text t) =
         let inline isLetter c = c>='a' && c<='z'
         let inline isNotLetter c = c<'a' || c>'z'
         let inline isNotDigit c = c>'9' || c<'0'
@@ -142,18 +142,26 @@ module Attribute =
                 else check (i+1) (isUnderscore c)
         isLetter t.[0] && check 1 false
 
+    let attributeId (cx:Context) (uri:Text) : Result<AttributeId,Text> = // "trader" "fund_manager"
+        failwith "attributeId"
 
-type SchemaAPI =
-    abstract member Attribute : Text -> Result<AttributeId,Text> // "trader" "fund_manager"
-    abstract member Entity : Text -> Result<Entity,Text> // "trade/1234" "trade/new1" "party/citibank"
-    abstract member Encode : AttributeId -> obj -> Result<int64,Text>
-    abstract member Decode : AttributeId -> int64 -> Result<obj,Text>
-    abstract member NewEntity : Entity[]
-    abstract member NewText : Text[]
-    abstract member NewByte : byte[][]
+    let entity (cx:Context) (uri:Text) : Result<Entity,Text> = // "trade/1234" "trade/new1" "party/citibank"
+        failwith "entity"
 
-type QueryAPI =
-    abstract member Table : Text -> AttributeId[] * int64[,] // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
+    let encode (cx:Context) (attribute:AttributeId) (o:obj) : Result<int64,Text> =
+        failwith "encode"
 
-type TransactionAPI =
-    abstract member Commit : TransactionData -> Text
+    let decode (cx:Context) (sttribute:AttributeId) (int64) : Result<obj,Text> =
+        failwith "decode"
+
+    let newEntity (cx:Context) : Entity[] =
+        failwith "newEntity"
+
+    let newText (cx:Context) : Text[] =
+        failwith "newText"
+
+    let newData (cx:Context) : byte[][] =
+        failwith "newData"
+
+    let queryTable (cx:Context) (query:Text) : AttributeId[] * int64[,] = // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
+        failwith "query"

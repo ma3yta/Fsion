@@ -47,9 +47,9 @@ let valueTypeTestList =
 
 let attributeValidNameTestList =
     let isValid s =
-        Expect.isTrue (Text s |> Attribute.validateName) ("isValid "+s)
+        Expect.isTrue (Text s |> Selector.validateName) ("isValid "+s)
     let isNotValid s =
-        Expect.isFalse (Text s |> Attribute.validateName) ("isNotValid "+s)
+        Expect.isFalse (Text s |> Selector.validateName) ("isNotValid "+s)
     testList "validate name" [
         
         testAsync "valid" {

@@ -4,7 +4,7 @@ open System
 open Expecto
 open Fsion
 
-let dataCacheTestList (cache:DataCache) = [
+let dataCacheTestList (cache:Database) = [
 
         testList "dataSeries" [
 
@@ -101,13 +101,13 @@ let dataCacheTestList (cache:DataCache) = [
 let dataCacheTests =
     let tempDir = tempDir()
     afterTesting tempDir.Dispose
-    let dataCache = DataCache.createMemory tempDir.Path
+    let dataCache = Database.createMemory tempDir.Path
     afterTesting dataCache.Dispose
     dataCache
     |> dataCacheTestList
     |> testList "dataCache memory"
 
-let databaseTestList (db:Database) = [
+let databaseTestList (db:Transactor.Context) = [
     
     testAsync "nothing" {
         let txData = {
@@ -117,7 +117,7 @@ let databaseTestList (db:Database) = [
             EntityDatum = []
             TransactionDatum = []
         }
-        Database.setTransaction txData (Time 1L) db
+        Transactor.commit txData (Time 1L) db
     }
 
     testAsync "create" {
@@ -128,7 +128,7 @@ let databaseTestList (db:Database) = [
             EntityDatum = [Entity(EntityType.attribute,1u), AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
-        Database.setTransaction txData (Time 2L) db
+        Transactor.commit txData (Time 2L) db
     }
 
     testAsync "update" {
@@ -136,16 +136,16 @@ let databaseTestList (db:Database) = [
             Text = [|Text "my_uri2"|]
             Data = [||]
             Creates = [||]
-            EntityDatum = [Attribute.toEntity AttributeId.uri, AttributeId.uri, Date 10u, 0L]
+            EntityDatum = [Selector.toEntity AttributeId.uri, AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
-        Database.setTransaction txData (Time 2L) db
+        Transactor.commit txData (Time 2L) db
     }
 ]
 
 let databaseTests =
     let tempDir = tempDir()
-    let database = Database.createMemory tempDir.Path
+    let database = Transactor.localContext tempDir.Path
     afterTesting tempDir.Dispose
     database
     |> databaseTestList

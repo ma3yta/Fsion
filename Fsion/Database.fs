@@ -4,10 +4,9 @@ open System
 open System.IO
 open System.Threading
 open System.Collections.Generic
-open System.Threading.Tasks
 open Fsion
 
-type DataCache =
+type Database =
     inherit IDisposable
     abstract member Get : (Entity * AttributeId) -> DataSeries option
     abstract member Set : (Entity * AttributeId) -> DataSeries -> unit
@@ -21,7 +20,7 @@ type DataCache =
     abstract member SnapshotLoad : int -> Result<unit,exn>
     abstract member SnapshotDelete : int -> Result<unit,exn>
 
-module DataCache =
+module Database =
 
     let createMemory (snapshotPath:string) =
         let dataSeriesDictionary = Dictionary<Entity * AttributeId, DataSeries>()
@@ -31,7 +30,7 @@ module DataCache =
         let textLock = new ReaderWriterLockSlim()
         let bytes = ResizeArray()
         let byteLock = new ReaderWriterLockSlim()
-        { new DataCache with
+        { new Database with
             member __.Get entityAttribute =
                 dataSeriesLock.EnterReadLock()
                 try
@@ -141,80 +140,3 @@ module DataCache =
             member __.Dispose() =
                 dataSeriesLock.Dispose()
         }
-
-type TransactionLog =
-    abstract member Set : Tx -> TransactionData -> Result<unit,exn>
-    abstract member Get : Tx -> Task<TransactionData> seq
-
-module TransationLog =
-    let createNull() =
-        { new TransactionLog with
-            member __.Set tx bytes =
-                Ok ()
-            member __.Get tx =
-                invalidOp "null log"
-        }
-    let createLocal transactionPath =
-        { new TransactionLog with
-            member __.Set (Tx txId) transactionData =
-                try
-                    use fs =
-                        Path.Combine [|transactionPath;txId.ToString()+".fsl"|]
-                        |> File.Create
-                    StreamSerialize.transactionDataSet fs transactionData
-                    Ok ()
-                with e -> Error e
-            member __.Get tx =
-                invalidOp "not implemented"
-        }
-
-[<NoComparison;NoEquality>]
-type Database = private {
-    DataCache : DataCache
-    mutable IndexEntityTypeCount : uint32 array
-    mutable IndexEntityTypeAttribute : uint32 [][]
-}
-
-module Database =
-    let createMemory snapshotPath =
-        {
-            DataCache = DataCache.createMemory snapshotPath
-            IndexEntityTypeCount = [|0u;0u;0u|]
-            IndexEntityTypeAttribute = [|[||];[||];[||]|]
-        }
-
-    [<Literal>]
-    let private txEntityTypeIndex = 0
-    [<Literal>]
-    let private entityTypeEntityTypeIndex = 1
-
-    let private transactionLock = obj()
-
-    let setTransaction (txData: TransactionData) (time: Time) (db:Database) =
-        lock transactionLock (fun () ->
-            
-            let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
-            
-            let ups (Entity(EntityType etId,_) as entity,AttributeId attributeId,date,value) =
-                let mutable attributeArray =
-                    &db.IndexEntityTypeAttribute.[int etId]
-                db.DataCache.Ups (entity,AttributeId attributeId)
-                    (date,Tx txId,value)
-                if Array.contains attributeId attributeArray |> not then
-                    Array.Resize(&attributeArray, attributeArray.Length+1)
-                    attributeArray.[attributeArray.Length-1] <- attributeId
-                    db.IndexEntityTypeAttribute.[int etId] <- attributeArray
-
-            let date = Time.toDate time
-            let txEntity = Entity(EntityType.tx, txId)
-
-            txData.TransactionDatum
-            |> Seq.append [AttributeId.time, Time.toInt64 time]
-            |> Seq.map (fun (a,v) -> txEntity,a,date,v)
-            |> Seq.iter ups
-
-            Seq.iter ups txData.EntityDatum
-            
-
-            db.IndexEntityTypeCount.[txEntityTypeIndex] <- txId + 1u
-        )
