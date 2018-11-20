@@ -6,42 +6,42 @@ open Fsion
 
 let valueTypeTestList =
 
-    let testRoundtrip valueType expected =
-        let actual = valueType.ToInt expected |> valueType.OfInt
+    let testRoundtrip encode decode expected =
+        let actual = encode expected |> decode
         Expect.equal actual expected "attribute roundtrip"
 
     testList "valuetype" [
 
         testProp "bool roundtrip" (
-            testRoundtrip ValueType.Bool
+            testRoundtrip FsionValue.encodeBool FsionValue.decodeBool
         )
         
         testProp "int roundtrip" (
-            testRoundtrip ValueType.Int
+            testRoundtrip FsionValue.encodeInt FsionValue.decodeInt
         )
 
         testProp "int64 roundtrip" (
-            testRoundtrip ValueType.Int64
+            testRoundtrip FsionValue.encodeInt64 FsionValue.decodeInt64
         )
 
         testProp "uri roundtrip" (
-            testRoundtrip ValueType.Uri
+            testRoundtrip FsionValue.encodeUri FsionValue.decodeUri
         )
 
         testProp "date roundtrip" (
-            testRoundtrip ValueType.Date
+            testRoundtrip FsionValue.encodeDate FsionValue.decodeDate
         )
 
         testProp "time roundtrip" (
-            testRoundtrip ValueType.Time
+            testRoundtrip FsionValue.encodeTime FsionValue.decodeTime
         )
 
         testProp "textid roundtrip" (
-            testRoundtrip ValueType.TextId
+            testRoundtrip FsionValue.encodeTextId FsionValue.decodeTextId
         )
 
         testProp "dataid roundtrip" (
-            testRoundtrip ValueType.DataId
+            testRoundtrip FsionValue.encodeDataId FsionValue.decodeDataId
         )
     ]
 

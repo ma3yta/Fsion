@@ -117,7 +117,7 @@ let databaseTestList (db:Transactor.Context) = [
             EntityDatum = []
             TransactionDatum = []
         }
-        Transactor.commit txData (Time 1L) db
+        Transactor.commit db txData |> ignore
     }
 
     testAsync "create" {
@@ -128,7 +128,7 @@ let databaseTestList (db:Transactor.Context) = [
             EntityDatum = [Entity(EntityType.attribute,1u), AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
-        Transactor.commit txData (Time 2L) db
+        Transactor.commit db txData |> ignore
     }
 
     testAsync "update" {
@@ -139,7 +139,7 @@ let databaseTestList (db:Transactor.Context) = [
             EntityDatum = [Selector.toEntity AttributeId.uri, AttributeId.uri, Date 10u, 0L]
             TransactionDatum = []
         }
-        Transactor.commit txData (Time 2L) db
+        Transactor.commit db txData |> ignore
     }
 ]
 

@@ -59,9 +59,13 @@ module Transactor =
 
     let private transactionLock = obj()
 
-    let commit (txData: TransactionData) (time: Time) (Local db) =
+    let private currentTime (Local db) =
+        Time 1L
+
+    let commit (Local db) (txData: TransactionData) =
         lock transactionLock (fun () ->
-            
+            let time = currentTime (Local db)
+
             let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
             
             let ups (Entity(EntityType etId,_) as entity,AttributeId attributeId,date,value) =
@@ -88,5 +92,4 @@ module Transactor =
             db.IndexEntityTypeCount.[txEntityTypeIndex] <- txId + 1u
         )
 
-    let commit2 (cx:Context) (tx:TransactionData) : Text =
-        failwith "commit"
+        Text "transaction successful"
