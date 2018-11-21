@@ -11,6 +11,7 @@ type Database =
     abstract member Get : (Entity * AttributeId) -> DataSeries option
     abstract member Set : (Entity * AttributeId) -> DataSeries -> unit
     abstract member Ups : (Entity * AttributeId) -> (Date * Tx * int64) -> unit
+    abstract member TryGetTextId : Text -> TextId option
     abstract member GetTextId : Text -> TextId
     abstract member GetText : TextId -> Text
     abstract member GetDataId : byte[] -> DataId
@@ -62,6 +63,14 @@ module Database =
                     texts.[int i]
                 finally
                     textLock.ExitReadLock()
+            member __.TryGetTextId (Text s) =
+                textLock.EnterWriteLock()
+                try
+                    let mutable i = 0u
+                    if stringDictionary.TryGetValue(s, &i) then TextId i |> Some
+                    else None
+                finally
+                    textLock.ExitWriteLock()
             member __.GetTextId (Text s) =
                 textLock.EnterWriteLock()
                 try

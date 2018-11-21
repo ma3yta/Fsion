@@ -6,6 +6,7 @@ open System
 type Text =
     internal
     | Text of string
+    static member (+)(Text t1,Text t2) = Text(t1+t2)
     static member (+)(s:string,Text t) = Text(s+t)
     static member (+)(Text t,s:string) = Text(t+s)
 
@@ -97,9 +98,9 @@ module Tx =
 [<Struct>]
 type EntityType =
     | EntityType of uint32
-    static member tx = EntityType 0u
-    static member entityType = EntityType 1u
-    static member attribute = EntityType 2u
+    static member entityType = EntityType 0u
+    static member attribute = EntityType 1u
+    static member transaction = EntityType 2u
 
 [<Struct>]
 type Entity =
@@ -110,15 +111,20 @@ type AttributeId =
     | AttributeId of uint32
     static member uri = AttributeId 0u
     static member time = AttributeId 1u
+    static member attribute_type = AttributeId 2u
+    static member attribute_isset = AttributeId 3u
 
+[<Struct>]
 type TextId =
     internal
     | TextId of uint32
 
+[<Struct>]
 type DataId =
     internal
     | DataId of uint32
 
+[<Struct>]
 type Uri =
     internal
     | Uri of uint32

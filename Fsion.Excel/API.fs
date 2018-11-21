@@ -23,12 +23,14 @@ module API =
         match Text.ofString query with
         | None -> Array2D.create 1 1 ("query missing" :> obj)
         | Some t ->
-            let attributes, data = Selector.queryTable selectorContext t
-            Array2D.mapi (fun i _ i64 ->
-                match Selector.decode selectorContext attributes.[i] i64 with
-                | Ok o -> o
-                | Error e -> "#ERR - " + Text.toString e :> obj
-            ) data
+            match Selector.queryTable selectorContext t with
+            | Error t -> Array2D.create 1 1 (Text.toString t :> obj)
+            | Ok(attributes, data) ->
+                Array2D.mapi (fun i _ i64 ->
+                    match Selector.decode selectorContext attributes.[i] i64 with
+                    | Ok o -> o
+                    | Error e -> "#ERR - " + Text.toString e :> obj
+                ) data
 
     let transactorContext = Unchecked.defaultof<Transactor.Context>
 
@@ -79,5 +81,5 @@ module API =
                 Text = Selector.newText context
                 Data = Selector.newData context
             }
-            |> Transactor.commit2 transactorContext
+            |> Transactor.commit transactorContext
             |> Text.toString

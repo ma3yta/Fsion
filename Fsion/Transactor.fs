@@ -79,7 +79,7 @@ module Transactor =
                     db.IndexEntityTypeAttribute.[int etId] <- attributeArray
 
             let date = Time.toDate time
-            let txEntity = Entity(EntityType.tx, txId)
+            let txEntity = Entity(EntityType.transaction, txId)
 
             txData.TransactionDatum
             |> Seq.append [AttributeId.time, Time.toInt64 time]

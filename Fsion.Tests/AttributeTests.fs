@@ -45,11 +45,11 @@ let valueTypeTestList =
         )
     ]
 
-let attributeValidNameTestList =
+let attributeValidUriTestList =
     let isValid s =
-        Expect.isTrue (Text s |> Selector.validateName) ("isValid "+s)
+        Expect.isTrue (Selector.validateUri (Text s) 0 s.Length) ("isValid "+s)
     let isNotValid s =
-        Expect.isFalse (Text s |> Selector.validateName) ("isNotValid "+s)
+        Expect.isFalse (Selector.validateUri (Text s) 0 s.Length) ("isNotValid "+s)
     testList "validate name" [
         
         testAsync "valid" {
@@ -74,5 +74,5 @@ let attributeValidNameTestList =
 let attributeTestList =
     testList "attribute" [
         valueTypeTestList
-        attributeValidNameTestList
+        attributeValidUriTestList
     ]
