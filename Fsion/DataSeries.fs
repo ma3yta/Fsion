@@ -485,7 +485,7 @@ module internal StreamSerialize =
             d.Add(entityAttributeGet s, bytesGet s |> DataSeries)
 
     let transactionDataSet (s:Stream) (transactionData:TransactionData) =
-        
+
         let text = transactionData.Text
         uint32Set s (uint32 text.Length)
         Array.iter (textSet s) text

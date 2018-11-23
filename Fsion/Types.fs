@@ -15,6 +15,7 @@ module Text =
         if String.IsNullOrWhiteSpace s then None
         else s.Trim() |> Text |> Some
     let toString (Text s) = s
+    let length (Text s) = s.Length
 
 type ResizeMap<'a,'b> = Collections.Generic.Dictionary<'a,'b>
 

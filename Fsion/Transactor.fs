@@ -63,6 +63,9 @@ module Transactor =
         Time 1L
 
     let commit (Local db) (txData: TransactionData) =
+        
+        // TODO: change any new equities to have lower ids if this is being serialized
+
         lock transactionLock (fun () ->
             let time = currentTime (Local db)
 
