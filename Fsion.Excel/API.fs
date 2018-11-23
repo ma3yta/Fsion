@@ -28,7 +28,7 @@ module API =
             | Ok(attributes, data) ->
                 Array2D.mapi (fun i _ i64 ->
                     match Selector.decode selectorContext attributes.[i] i64 with
-                    | Ok o -> o
+                    | Ok o -> o :> obj // TODO: add excel value marshalling
                     | Error e -> "#ERR - " + Text.toString e :> obj
                 ) data
 
@@ -52,7 +52,7 @@ module API =
             <*> (tryCast dt |> Result.ofOption "Date not valid" |> Result.map Date.ofDateTime)
             <*> (if isNull value then Text.ofString "Value is null" |> Option.get |> Error
                  else match attribute with
-                      | Ok a -> Selector.encode context a value
+                      | Ok a -> failwith "hi" // TODO: Selector.encode context a value
                       | Error _ -> Ok 0L
                 )
         

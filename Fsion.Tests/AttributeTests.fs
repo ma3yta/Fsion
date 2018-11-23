@@ -45,11 +45,21 @@ let valueTypeTestList =
         )
     ]
 
+open Selector
+
 let attributeValidUriTestList =
     let isValid s =
-        Expect.isTrue (Selector.validateUri (Text s) 0 s.Length) ("isValid "+s)
+        let isValid =
+            match Text s,0,s.Length with
+            | UriUri -> true
+            | _ -> false
+        Expect.isTrue isValid ("isValid "+s)
     let isNotValid s =
-        Expect.isFalse (Selector.validateUri (Text s) 0 s.Length) ("isNotValid "+s)
+        let isValid =
+            match Text s,0,s.Length with
+            | UriUri -> true
+            | _ -> false
+        Expect.isFalse isValid ("isNotValid "+s)
     testList "validate name" [
         
         testAsync "valid" {
