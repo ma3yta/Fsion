@@ -68,7 +68,7 @@ module Auto =
                 b
 
 [<Struct>]
-type Date =
+type Date = // TODO: pick a better start date
     | Date of uint32
     static member (-) (Date a, Date b) = int(a - b)
     static member (+) (Date a, b: int) = Date(uint32(int a + b))

@@ -17,6 +17,7 @@
     <Compile Include="Types.fs" />
     <Compile Include="DataSeries.fs" />
     <Compile Include="Database.fs" />
+    <Compile Include="ValueType.fs" />
     <Compile Include="Selector.fs" />
     <Compile Include="Transactor.fs" />
   </ItemGroup>

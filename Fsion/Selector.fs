@@ -1,164 +1,20 @@
 ﻿namespace Fsion
 
 open System
-
-type ValueType =
-    | FsionValueType
-    | FsionBool
-    | FsionInt
-    | FsionInt64
-    | FsionUri
-    | FsionDate
-    | FsionTime
-    | FsionTextId
-    | FsionDataId
-    member i.Encode() =
-        match i with
-        | FsionValueType -> 1L
-        | FsionBool -> 2L
-        | FsionInt -> 3L
-        | FsionInt64 -> 4L
-        | FsionUri -> 5L
-        | FsionDate -> 6L
-        | FsionTime -> 7L
-        | FsionTextId -> 8L
-        | FsionDataId -> 9L
-    static member Decode i =
-        match i with
-        | 1L -> FsionValueType
-        | 2L -> FsionBool
-        | 3L -> FsionInt
-        | 4L -> FsionInt64
-        | 5L -> FsionUri
-        | 6L -> FsionDate
-        | 7L -> FsionTime
-        | 8L -> FsionTextId
-        | 9L -> FsionDataId
-        | _ -> FsionInt
-
-type FsionValue =
-    | FsionValueType of ValueType
-    | FsionValueBool of bool
-    | FsionValueInt of int
-    | FsionValueInt64 of int64
-    | FsionValueUri of Fsion.Uri
-    | FsionValueDate of Date
-    | FsionValueTime of Time
-    | FsionValueTextId of TextId
-    | FsionValueDataId of DataId
-
-module FsionValue =
-    let encode (v:FsionValue option) =
-        match v with
-        | None -> 0L
-        | Some(FsionValueType i) -> i.Encode()
-        | Some(FsionValueBool i) -> if i then 1L else -1L
-        | Some(FsionValueInt i) -> if i>0 then int64 i else int64(i-1)
-        | Some(FsionValueInt64 i) -> if i>0L then i else i-1L
-        | Some(FsionValueUri(Uri i)) -> unzigzag(i+1u) |> int64
-        | Some(FsionValueDate(Date i)) -> unzigzag(i+1u) |> int64
-        | Some(FsionValueTime(Time i)) -> if i>0L then i else i-1L
-        | Some(FsionValueTextId(TextId i)) -> unzigzag(i+1u) |> int64
-        | Some(FsionValueDataId(DataId i)) -> unzigzag(i+1u) |> int64
-
-    let encodeBool i =
-        match i with
-        | None -> 0L
-        | Some i -> if i then 1L else -1L
-    
-    let decodeBool i =
-        match i with
-        | 0L -> None
-        | 1L -> Some true
-        | -1L -> Some false
-        | i -> failwithf "bool ofint %i" i
-
-    let encodeInt i =
-        match i with
-        | None -> 0L
-        | Some i -> if i>0 then int64 i else int64(i-1)
-
-    let decodeInt i =
-        match i with
-        | 0L -> None
-        | i when i>0L -> int32 i |> Some
-        | i -> int32 i + 1 |> Some
-
-    let encodeInt64 i =
-        match i with
-        | None -> 0L
-        | Some i -> if i>0L then i else i-1L
-
-    let decodeInt64 i =
-        match i with
-        | 0L -> None
-        | i when i>0L -> Some i
-        | i -> i + 1L |> Some
-
-    let encodeUri i =
-        match i with
-        | None -> 0L
-        | Some(Uri i) -> unzigzag(i+1u) |> int64
-    
-    let decodeUri i =
-        match i with
-        | 0L -> None
-        | i -> Fsion.Uri(zigzag(int32 i) - 1u) |> Some
-
-    let encodeDate i =
-        match i with
-        | None -> 0L
-        | Some(Date i) -> unzigzag(i+1u) |> int64
-
-    let decodeDate i =
-        match i with
-        | 0L -> None
-        | i -> Date(zigzag(int32 i) - 1u) |> Some
-
-    let encodeTime i =
-        match i with
-        | None -> 0L
-        | Some(Time i) -> if i>0L then i else i-1L
-
-    let decodeTime i =
-        match i with
-        | 0L -> None
-        | i when i>0L -> Time i |> Some
-        | i -> Time(i+1L) |> Some
-
-    let encodeTextId i =
-        match i with
-        | None -> 0L
-        | Some(TextId i) -> unzigzag(i+1u) |> int64
-
-    let decodeTextId i =
-        match i with
-        | 0L -> None
-        | i -> TextId(zigzag(int32 i) - 1u) |> Some
-
-    let encodeDataId i =
-        match i with
-        | None -> 0L
-        | Some(DataId i) -> unzigzag(i+1u) |> int64
-
-    let decodeDataId i =
-        match i with
-        | 0L -> None
-        | i -> DataId(zigzag(int32 i) - 1u) |> Some
-
+open Fsion
 
 [<NoComparison;NoEquality>]
 type Attribute<'a> = {
     Id: AttributeId
-    ValueType: ValueType
+    ValueType: FsionType
     IsSet: bool
 }
 
 module Attribute =
-    let uri : Attribute<Uri> = { Id = AttributeId.uri; ValueType = FsionUri; IsSet = true }
-    let time : Attribute<Time> = { Id = AttributeId.time; ValueType = FsionTime; IsSet = false }
-    let attribute_type : Attribute<Time> = { Id = AttributeId.attribute_type; ValueType = FsionTime; IsSet = false }
-    let attribute_isset : Attribute<bool> = { Id = AttributeId.attribute_isset; ValueType = FsionBool; IsSet = false }
+    let uri : Attribute<Uri> = { Id = AttributeId.uri; ValueType = TypeUri; IsSet = true }
+    let time : Attribute<Time> = { Id = AttributeId.time; ValueType = TypeTime; IsSet = false }
+    let attribute_type : Attribute<Time> = { Id = AttributeId.attribute_type; ValueType = TypeTime; IsSet = false }
+    let attribute_isset : Attribute<bool> = { Id = AttributeId.attribute_isset; ValueType = TypeBool; IsSet = false }
 
 // TODO: sets, typed entities, decimal
 
@@ -291,11 +147,22 @@ module Selector =
                 | Some i -> AttributeId i |> Ok
         | UriInvalid -> "attribute is not a valid uri: " + text |> Error
 
-    let encode (cx:Context) (attribute:AttributeId) (o:FsionValue option) : Result<int64,Text> =
-        failwith "encode"
+    let attributeValueTypeLookup (i:AttributeId) : FsionType = failwith "todo"
 
-    let decode (cx:Context) (attribute:AttributeId) (i:int64) : Result<FsionValue,Text> =
-        failwith "decode"
+    let encode (cx:Context) attribute o =
+        match o with
+        | None -> FsionValue.encode o |> Ok
+        | Some fv ->
+            let attributeType = attributeValueTypeLookup attribute
+            let inputType = FsionValue.valueType fv
+            if attributeType = inputType then FsionValue.encode o |> Ok
+            else
+                "attribute type (" + attributeType.Name +
+                ") mismatch with value (" + inputType.Name + ")" |> Error
+
+    let decode (cx:Context) (attribute:AttributeId) (i:int64) : FsionValue option =
+        let attributeType = attributeValueTypeLookup attribute
+        FsionValue.decode attributeType i
 
     let newEntity (cx:Context) =
         match cx with
