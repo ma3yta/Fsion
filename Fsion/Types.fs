@@ -79,6 +79,8 @@ module Date =
     let maxValue = Date UInt32.MaxValue
     let ofDateTime (d:DateTime) =
         d.Ticks / TimeSpan.TicksPerDay |> uint32 |> Date
+    let toDateTime (Date d) =
+        int64 d * TimeSpan.TicksPerDay |> DateTime
 
 [<Struct>]
 type Time =
@@ -89,6 +91,8 @@ module Time =
         ticks
     let toDate (Time ticks) =
         ticks / TimeSpan.TicksPerDay |> uint32 |> Date
+    let toDateTime (Time t) =
+        DateTime t
 
 [<Struct>]
 type Tx = Tx of uint32

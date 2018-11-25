@@ -145,7 +145,8 @@ let databaseTestList (db:Transactor.Context) = [
 
 let databaseTests =
     let tempDir = tempDir()
-    let database = Transactor.localContext tempDir.Path
+    let database = Database.createMemory tempDir.Path
+    let database = Transactor.localContext database
     afterTesting tempDir.Dispose
     database
     |> databaseTestList

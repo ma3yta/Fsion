@@ -68,11 +68,8 @@ module Selector =
         | Local of Database
         | Create of Database * ResizeArray<Entity> * ResizeArray<Text> * ResizeArray<byte[]>
 
-    //let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
-    //    db.Get (e,a.Id)
-    //    |> Option.map (DataSeries.get d tx)
-    //    |> Option.bind (fun (d,t,v) ->
-    //        a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))
+    let localContext database =
+        Local database
 
     let toEntity (AttributeId aid) =
         Entity(EntityType.attribute, aid)
@@ -185,3 +182,9 @@ module Selector =
 
     let queryTable (cx:Context) (query:Text) : Result<AttributeId[] * int64[,],Text> = // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
         failwith "query"
+
+    //let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
+    //    db.Get (e,a.Id)
+    //    |> Option.map (DataSeries.get d tx)
+    //    |> Option.bind (fun (d,t,v) ->
+    //        a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))

@@ -1,8 +1,9 @@
 ﻿namespace Fsion.Excel
 
 open System
-open Fsion
 open ExcelDna.Integration
+open Fsion
+
 
 type private FsionFunction() =
     inherit ExcelFunctionAttribute(
@@ -12,13 +13,33 @@ type private FsionFunction() =
     )
 
 module API =
+    let private fromExcel (o:obj) : FsionValue =
+        match o with
+        | :? DateTime as dt -> Date.ofDateTime dt |> FsionDate
+        | _ -> FsionInt 7
 
-    let selectorContext = Unchecked.defaultof<Selector.Context>
+    let toExcel (v:FsionValue) =
+        match v with
+        | FsionType i -> i.ToString() :> obj
+        | FsionBool i -> i :> obj
+        | FsionInt i -> i :> obj
+        | FsionInt64 i -> i :> obj
+        | FsionUri i -> i :> obj
+        | FsionDate i -> Date.toDateTime i :> obj
+        | FsionTime i -> Time.toDateTime i :> obj
+        | FsionTextId i -> i :> obj
+        | FsionDataId i -> i :> obj
+
+    let private database =
+        Database.createMemory "C:/temp/FsionTest"
+
+    let private selectorContext =
+        Selector.localContext database
     
     [<Literal>]
     let private wikiRoot = "https://github.com/AnthonyLloyd/Fsion/wiki/"
 
-    [<FsionFunction(HelpTopic = wikiRoot + "FQuery", Description = "fsion query")>]
+    [<FsionFunction(HelpTopic = wikiRoot + "FsionGet", Description = "fsion get")>]
     let FsionGet ([<ExcelArgument(Description="the fsion query")>] query:string) : obj[,] =
         match Text.ofString query with
         | None -> Array2D.create 1 1 ("query missing" :> obj)
@@ -28,13 +49,14 @@ module API =
             | Ok(attributes, data) ->
                 Array2D.mapi (fun i _ i64 ->
                     match Selector.decode selectorContext attributes.[i] i64 with
-                    | Ok o -> o :> obj // TODO: add excel value marshalling
-                    | Error e -> "#ERR - " + Text.toString e :> obj
+                    | None -> "#NotSet" :> obj
+                    | Some fv -> toExcel fv
                 ) data
 
-    let transactorContext = Unchecked.defaultof<Transactor.Context>
+    let transactorContext =
+        Transactor.localContext database
 
-    [<FsionFunction(HelpTopic = wikiRoot + "FCommand", Description = "fsion command")>]
+    [<FsionFunction(HelpTopic = wikiRoot + "FsionSet", Description = "fsion set")>]
     let FsionSet ([<ExcelArgument(Description="Entity, Attribute, Date, Value table")>] table:obj[,]) =
         let context = selectorContext
 

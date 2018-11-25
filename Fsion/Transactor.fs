@@ -33,7 +33,7 @@ module TransationLog =
 
 [<NoComparison;NoEquality>]
 type private TransactionLocalContext = {
-    DataCache : Database
+    Database : Database
     mutable IndexEntityTypeCount : uint32 array
     mutable IndexEntityTypeAttribute : uint32 [][]
 }
@@ -45,9 +45,9 @@ module Transactor =
         private
         | Local of TransactionLocalContext
 
-    let localContext snapshotPath =
+    let localContext (database:Database) =
         {
-            DataCache = Database.createMemory snapshotPath
+            Database = database
             IndexEntityTypeCount = [|0u;0u;0u|]
             IndexEntityTypeAttribute = [|[||];[||];[||]|]
         } |> Local
@@ -74,7 +74,7 @@ module Transactor =
             let ups (Entity(EntityType etId,_) as entity,AttributeId attributeId,date,value) =
                 let mutable attributeArray =
                     &db.IndexEntityTypeAttribute.[int etId]
-                db.DataCache.Ups (entity,AttributeId attributeId)
+                db.Database.Ups (entity,AttributeId attributeId)
                     (date,Tx txId,value)
                 if Array.contains attributeId attributeArray |> not then
                     Array.Resize(&attributeArray, attributeArray.Length+1)
