@@ -53,7 +53,12 @@ module Auto =
     let inline unzigzag (i:uint32) = int(i >>> 1) ^^^ -int(i &&& 1u)
     let inline zigzag64 (i:int64) = (i <<< 1) ^^^ (i >>> 63) |> uint64
     let inline unzigzag64 (i:uint64) = int64(i >>> 1) ^^^ -int64(i &&& 1UL)
-    let tryCast (o:obj) : 'a option =
+    let private someunit = Some()
+    let (|IsText|_|) str (Text s) =
+        if String.Equals(str, s, StringComparison.OrdinalIgnoreCase) then
+            someunit
+        else None
+    let tryCast (o:obj) : 'a option = // TODO: maybe should be Option.tryCast
         match o with
         | :? 'a as a -> Some a
         | _ -> None
@@ -91,6 +96,8 @@ module Time =
         ticks
     let toDate (Time ticks) =
         ticks / TimeSpan.TicksPerDay |> uint32 |> Date
+    let ofDateTime (d:DateTime) =
+        Time d.Ticks
     let toDateTime (Time t) =
         DateTime t
 

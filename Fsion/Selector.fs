@@ -146,20 +146,8 @@ module Selector =
 
     let attributeValueTypeLookup (i:AttributeId) : FsionType = failwith "todo"
 
-    let encode (cx:Context) attribute o =
-        match o with
-        | None -> FsionValue.encode o |> Ok
-        | Some fv ->
-            let attributeType = attributeValueTypeLookup attribute
-            let inputType = FsionValue.valueType fv
-            if attributeType = inputType then FsionValue.encode o |> Ok
-            else
-                "attribute type (" + attributeType.Name +
-                ") mismatch with value (" + inputType.Name + ")" |> Error
-
-    let decode (cx:Context) (attribute:AttributeId) (i:int64) : FsionValue option =
-        let attributeType = attributeValueTypeLookup attribute
-        FsionValue.decode attributeType i
+    let attributeType (cx:Context) (attribute:AttributeId) =
+        attributeValueTypeLookup attribute
 
     let newEntity (cx:Context) =
         match cx with

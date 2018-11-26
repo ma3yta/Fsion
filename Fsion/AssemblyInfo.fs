@@ -10,13 +10,6 @@ open System.Runtime.CompilerServices
 [<assembly: AssemblyVersionAttribute("0.0.8")>]
 [<assembly: AssemblyFileVersionAttribute("0.0.8")>]
 [<assembly: InternalsVisibleToAttribute("Fsion.Tests")>]
+[<assembly: InternalsVisibleToAttribute("Fsion.Excel")>]
 do ()
 
-module internal AssemblyVersionInformation =
-    let [<Literal>] AssemblyTitle = "Fsion"
-    let [<Literal>] AssemblyProduct = "Fsion"
-    let [<Literal>] AssemblyCopyright = "Copyright 2018"
-    let [<Literal>] AssemblyDescription = "EAVT (Entity Attribute Value Time) database for F#"
-    let [<Literal>] AssemblyVersion = "0.0.8"
-    let [<Literal>] AssemblyFileVersion = "0.0.8"
-    let [<Literal>] InternalsVisibleTo = "Fsion.Tests"

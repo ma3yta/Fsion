@@ -63,7 +63,8 @@ Target.create "AssemblyInfo" (fun _ ->
             AssemblyInfo.Version release.AssemblyVersion
             AssemblyInfo.FileVersion release.AssemblyVersion
             AssemblyInfo.InternalsVisibleTo "Fsion.Tests"
-        ] (AssemblyInfoFileConfig(true,false,"Fsion"))
+            AssemblyInfo.InternalsVisibleTo "Fsion.Excel"
+        ] (AssemblyInfoFileConfig(false,false,"Fsion"))
         normaliseFileToLFEnding filename
     createAssemblyInfo "Fsion"
 )

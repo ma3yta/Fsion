@@ -4,7 +4,6 @@ open System
 open ExcelDna.Integration
 open Fsion
 
-
 type private FsionFunction() =
     inherit ExcelFunctionAttribute(
         Category = "Fsion",
@@ -13,22 +12,56 @@ type private FsionFunction() =
     )
 
 module API =
-    let private fromExcel (o:obj) : FsionValue =
-        match o with
-        | :? DateTime as dt -> Date.ofDateTime dt |> FsionDate
-        | _ -> FsionInt 7
+    [<Literal>]
+    let private unset = "#Unset"
 
-    let toExcel (v:FsionValue) =
-        match v with
-        | FsionType i -> i.ToString() :> obj
-        | FsionBool i -> i :> obj
-        | FsionInt i -> i :> obj
-        | FsionInt64 i -> i :> obj
-        | FsionUri i -> i :> obj
-        | FsionDate i -> Date.toDateTime i :> obj
-        | FsionTime i -> Time.toDateTime i :> obj
-        | FsionTextId i -> i :> obj
-        | FsionDataId i -> i :> obj
+    let private encode (t:FsionType) (o:obj) =
+        let ofObj (o:obj) =
+            let comp = StringComparison.OrdinalIgnoreCase
+            match o with
+            | :? string as s when unset.Equals(s,comp) -> Ok None
+            | o ->
+                tryCast o
+                |> Result.ofOption "not a valid %s: %A" (Text.toString t.Name) o
+                |> Result.map Some
+        match t with
+        | TypeType ->
+            tryCast o
+            |> Option.bind Text.ofString
+            |> Result.ofOption "type not text"
+            |> Result.bind (function
+                | IsText unset -> Ok None
+                | t -> FsionType.Parse t |> Result.map Some
+            )
+            |> Result.map FsionValue.encodeType
+        | TypeBool -> ofObj o |> Result.map FsionValue.encodeBool
+        | TypeInt -> ofObj o |> Result.map FsionValue.encodeInt
+        | TypeInt64 -> ofObj o |> Result.map FsionValue.encodeInt64
+        | TypeUri -> ofObj o |> Result.map FsionValue.encodeUri
+        | TypeDate ->
+            ofObj o
+            |> Result.map (Option.map Date.ofDateTime >> FsionValue.encodeDate)
+        | TypeTime ->
+            ofObj o
+            |> Result.map (Option.map Time.ofDateTime >> FsionValue.encodeTime)
+        | TypeTextId ->  ofObj o |> Result.map FsionValue.encodeTextId
+        | TypeDataId -> ofObj o |> Result.map FsionValue.encodeDataId
+
+    let private decode (t:FsionType) (i64:int64) =
+        let toObj = function Some a -> a :> obj | None -> unset :> obj
+        match t with
+        | TypeType ->
+            FsionValue.decodeType i64
+            |> Option.map (fun i -> Text.toString i.Name)
+            |> toObj
+        | TypeBool -> FsionValue.decodeBool i64 |> toObj
+        | TypeInt -> FsionValue.decodeInt i64 |> toObj
+        | TypeInt64 -> FsionValue.decodeInt64 i64 |> toObj
+        | TypeUri -> FsionValue.decodeUri i64 |> toObj
+        | TypeDate -> FsionValue.decodeDate i64 |> toObj
+        | TypeTime -> FsionValue.decodeTime i64 |> toObj
+        | TypeTextId -> FsionValue.decodeTextId i64 |> toObj
+        | TypeDataId -> FsionValue.decodeTextId i64 |> toObj
 
     let private database =
         Database.createMemory "C:/temp/FsionTest"
@@ -46,11 +79,10 @@ module API =
         | Some t ->
             match Selector.queryTable selectorContext t with
             | Error t -> Array2D.create 1 1 (Text.toString t :> obj)
-            | Ok(attributes, data) ->
+            | Ok (attributes, data) ->
                 Array2D.mapi (fun i _ i64 ->
-                    match Selector.decode selectorContext attributes.[i] i64 with
-                    | None -> "#NotSet" :> obj
-                    | Some fv -> toExcel fv
+                    let attributeType = Selector.attributeType selectorContext attributes.[i]
+                    decode attributeType i64
                 ) data
 
     let transactorContext =
@@ -72,9 +104,11 @@ module API =
                  |> Result.ofOption "Uri not a string" |> Result.bind (Selector.entity context))
             <*> attribute
             <*> (tryCast dt |> Result.ofOption "Date not valid" |> Result.map Date.ofDateTime)
-            <*> (if isNull value then Text.ofString "Value is null" |> Option.get |> Error
+            <*> (if isNull value then Text "Value is null" |> Error
                  else match attribute with
-                      | Ok a -> failwith "hi" // TODO: Selector.encode context a value
+                      | Ok a ->
+                        let attributeType = Selector.attributeType context a
+                        encode attributeType value
                       | Error _ -> Ok 0L
                 )
         

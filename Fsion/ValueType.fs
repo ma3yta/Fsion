@@ -44,6 +44,18 @@ type FsionType =
         | TypeTime -> Text "time"
         | TypeTextId -> Text "textid"
         | TypeDataId -> Text "dataid"
+    static member Parse text : Result<FsionType,Text> =
+        match text with
+        | IsText "type" -> TypeType |> Ok
+        | IsText "bool" -> TypeBool |> Ok
+        | IsText "int" -> TypeInt |> Ok
+        | IsText "int64" -> TypeInt64 |> Ok
+        | IsText "uri" -> TypeUri |> Ok
+        | IsText "date" -> TypeDate |> Ok
+        | IsText "time" -> TypeTime |> Ok
+        | IsText "textid" -> TypeTextId |> Ok
+        | IsText "dataid" -> TypeDataId |> Ok
+        | Text s -> "unknown type: " + s |> Text |> Error
 
 type FsionValue =
     | FsionType of FsionType
@@ -58,24 +70,12 @@ type FsionValue =
 
 module FsionValue =
 
-    let valueType (v:FsionValue) =
-        match v with
-        | FsionType _ -> TypeType
-        | FsionBool _ -> TypeBool
-        | FsionInt _ -> TypeInt
-        | FsionInt64 _ -> TypeInt64
-        | FsionUri _ -> TypeUri
-        | FsionDate _ -> TypeDate
-        | FsionTime _ -> TypeTime
-        | FsionTextId _ -> TypeTextId
-        | FsionDataId _ -> TypeDataId
-
-    let encodeValueTpe (i:FsionType option) =
+    let encodeType (i:FsionType option) =
         match i with
         | None -> 0L
         | Some i -> i.Encode()
 
-    let decodeValueType i =
+    let decodeType i =
         match i with
         | 0L -> None
         | i -> FsionType.Decode i |> Some
@@ -164,47 +164,3 @@ module FsionValue =
         match i with
         | 0L -> None
         | i -> DataId(zigzag(int32 i) - 1u) |> Some
-
-    let encode (v:FsionValue option) =
-        match v with
-        | None -> 0L
-        | Some(FsionType i) -> i.Encode()
-        | Some(FsionBool i) -> if i then 1L else -1L
-        | Some(FsionInt i) -> if i>0 then int64 i else int64(i-1)
-        | Some(FsionInt64 i) -> if i>0L then i else i-1L
-        | Some(FsionUri(Uri i)) -> unzigzag(i+1u) |> int64
-        | Some(FsionDate(Date i)) -> unzigzag(i+1u) |> int64
-        | Some(FsionTime(Time i)) -> if i>0L then i else i-1L
-        | Some(FsionTextId(TextId i)) -> unzigzag(i+1u) |> int64
-        | Some(FsionDataId(DataId i)) -> unzigzag(i+1u) |> int64
-
-    let decode (t:FsionType) (i:int64) =
-        if i=0L then None
-        else
-            match t with
-            | TypeType -> FsionType.Decode i |> FsionType |> Some
-            | TypeBool ->
-                if i=1L then FsionBool true |> Some
-                elif i= -1L then FsionBool false |> Some
-                else failwithf "bool ofint %i" i
-            | TypeInt ->
-                if i>0L then int32 i |> FsionInt |> Some
-                else int32 i + 1 |> FsionInt |> Some
-            | TypeInt64 ->
-                if i>0L then FsionInt64 i |> Some
-                else i+1L |> FsionInt64 |> Some
-            | TypeUri ->
-                Uri(zigzag(int32 i) - 1u)
-                |> FsionUri |> Some
-            | TypeDate ->
-                Date(zigzag(int32 i) - 1u)
-                |> FsionDate |> Some
-            | TypeTime ->
-                if i>0L then Time i |> FsionTime |> Some
-                else Time(i+1L) |> FsionTime |> Some
-            | TypeTextId ->
-                TextId(zigzag(int32 i) - 1u)
-                |> FsionTextId |> Some
-            | TypeDataId ->
-                DataId(zigzag(int32 i) - 1u)
-                |> FsionDataId |> Some
