@@ -72,14 +72,12 @@ module Transactor =
             let txId = uint32 db.IndexEntityTypeCount.[txEntityTypeIndex]
             
             let ups (Entity(EntityType etId,_) as entity,AttributeId attributeId,date,value) =
-                let mutable attributeArray =
-                    &db.IndexEntityTypeAttribute.[int etId]
-                db.Database.Ups (entity,AttributeId attributeId)
-                    (date,Tx txId,value)
+                let mutable attributeArray = &db.IndexEntityTypeAttribute.[int etId]
+                db.Database.Ups (entity,AttributeId attributeId) (date,Tx txId,value)
                 if Array.contains attributeId attributeArray |> not then
                     Array.Resize(&attributeArray, attributeArray.Length+1)
                     attributeArray.[attributeArray.Length-1] <- attributeId
-                    db.IndexEntityTypeAttribute.[int etId] <- attributeArray
+                    //db.IndexEntityTypeAttribute.[int etId] <- attributeArray
 
             let date = Time.toDate time
             let txEntity = Entity(EntityType.transaction, txId)

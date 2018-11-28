@@ -14,6 +14,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Prelude.fs" />
+    <Compile Include="MapSlim.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="DataSeries.fs" />
     <Compile Include="Database.fs" />

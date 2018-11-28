@@ -76,6 +76,7 @@ module Selector =
 
     let entityTypeUriLookup (i:TextId) : EntityType option = failwith "todo"
     let entityUriLookup (i:TextId) : uint32 option = failwith "todo"
+    let attributeUriLookup (i:TextId) : uint32 option = failwith "todo"
 
     let entity (cx:Context) (Text uri) = // "4/123" "trade/1234" "trade/new1" "party/citibank"
         match uri.IndexOf('/') with
@@ -128,8 +129,6 @@ module Selector =
             | Error e, Ok _ -> Error e
             | Error e1, Error e2 -> Error (e1 + ". " + e2)
 
-    let attributeUriLookup (i:TextId) : uint32 option = failwith "todo"
-        
     let attributeId (cx:Context) (text:Text) = // "trader" "fund_manager"
         match text,0,Text.length text with
         | UriInt i -> AttributeId i |> Ok
@@ -144,10 +143,21 @@ module Selector =
                 | Some i -> AttributeId i |> Ok
         | UriInvalid -> "attribute is not a valid uri: " + text |> Error
 
-    let attributeValueTypeLookup (i:AttributeId) : FsionType = failwith "todo"
+    
+    //let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
+    //    db.Get (e,a.Id)
+    //    |> Option.map (DataSeries.get d tx)
+    //    |> Option.bind (fun (d,t,v) ->
+    //        a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))
 
-    let attributeType (cx:Context) (attribute:AttributeId) =
-        attributeValueTypeLookup attribute
+    let attributeType (cx:Context) (attribute:AttributeId) = // TODO: assumes type exists and is same over time
+        let db = match cx with | Local i -> i | Create (i,_,_,_) -> i
+        db.Get(toEntity attribute, AttributeId.attribute_type)
+        |> Option.map (DataSeries.get Date.maxValue Tx.maxValue)
+        |> Option.get
+        |> trd
+        |> FsionValue.decodeType
+        |> Option.get
 
     let newEntity (cx:Context) =
         match cx with
@@ -170,9 +180,3 @@ module Selector =
 
     let queryTable (cx:Context) (query:Text) : Result<AttributeId[] * int64[,],Text> = // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
         failwith "query"
-
-    //let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
-    //    db.Get (e,a.Id)
-    //    |> Option.map (DataSeries.get d tx)
-    //    |> Option.bind (fun (d,t,v) ->
-    //        a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))

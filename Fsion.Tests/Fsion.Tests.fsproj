@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Prelude.fs" />
+    <Compile Include="MapSlimTests.fs" />
     <Compile Include="TypesTests.fs" />
     <Compile Include="DataSeriesTests.fs" />
     <Compile Include="DatabaseTests.fs" />
