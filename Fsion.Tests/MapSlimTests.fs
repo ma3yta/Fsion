@@ -129,28 +129,28 @@ let performanceTests =
         }
 
 
-        testSequenced <| testAsync "general2" {
-            let keys =
-                let size, aggCount = 5_000, 250
-                let rand = Random 11231992
-                Array.init size (fun _ -> rand.Next(size/aggCount))
-            Expect.isFasterThan
-                (fun () ->
-                    let refDict = MapSlim2()
-                    for i = 0 to keys.Length-1 do
-                        let k = keys.[i]
-                        let v = &refDict.RefGet k
-                        v <- v + k
-                )
-                (fun () ->
-                    let refDict = MapSlim()
-                    for i = 0 to keys.Length-1 do
-                        let k = keys.[i]
-                        let v = &refDict.RefGet k
-                        v <- v + k
-                )
-                "mapslim general"
-        }
+        //testSequenced <| testAsync "general2" {
+        //    let keys =
+        //        let size, aggCount = 5_000, 250
+        //        let rand = Random 11231992
+        //        Array.init size (fun _ -> rand.Next(size/aggCount))
+        //    Expect.isFasterThan
+        //        (fun () ->
+        //            let refDict = MapSlim2()
+        //            for i = 0 to keys.Length-1 do
+        //                let k = keys.[i]
+        //                let v = &refDict.RefGet k
+        //                v <- v + k
+        //        )
+        //        (fun () ->
+        //            let refDict = MapSlim()
+        //            for i = 0 to keys.Length-1 do
+        //                let k = keys.[i]
+        //                let v = &refDict.RefGet k
+        //                v <- v + k
+        //        )
+        //        "mapslim general"
+        //}
 
         // TODO: one more perf test
     ]
