@@ -95,12 +95,12 @@ Target.create "RunTest" (fun _ ->
 
     let runTest project =
         DotNet.exec (DotNet.Options.withDotNetCliPath dotnetExePath)
-             "run" ("-f netcoreapp2.1 -p " + project)
+             "run" ("-f netcoreapp2.1 -c release -p " + project)
         |> isOk
 
         if Environment.isWindows then
             DotNet.exec (DotNet.Options.withDotNetCliPath dotnetExePath)
-             "run" ("-f net472 -p " + project)
+             "run" ("-f net472 -c release -p " + project)
             |> isOk
 
         project + ".TestResults.xml"

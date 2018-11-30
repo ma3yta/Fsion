@@ -37,15 +37,6 @@ module Auto =
         match o with
         | :? 'a as a -> Some a
         | _ -> None
-    let memoize (f:'a->'b) =
-        let d = ResizeMap HashIdentity.Structural
-        fun a ->
-            let mutable b = Unchecked.defaultof<_>
-            if d.TryGetValue(a,&b) then b
-            else
-                b <- f a
-                d.Add(a,b)
-                b
 
 [<Struct>]
 type Date = // TODO: pick a better start date
