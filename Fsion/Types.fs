@@ -17,31 +17,6 @@ module Text =
     let toString (Text s) = s
     let length (Text s) = s.Length
 
-type ResizeMap<'a,'b> = Collections.Generic.Dictionary<'a,'b>
-
-module Result =
-    let apply f x =
-        match f,x with
-        | Ok f, Ok v -> Ok (f v)
-        | Error f, Ok _ -> Error f
-        | Ok _, Error f -> Error [f]
-        | Error f1, Error f2 -> Error (f2::f1)
-    let ofOption format =
-        let sb = Text.StringBuilder()
-        Printf.kbprintf (fun () ->
-            function
-            | Some x -> Ok x
-            | None -> sb.ToString() |> Text |> Error
-        ) sb format
-    let sequence list =
-        List.fold (fun s i ->
-            match s,i with
-            | Ok l, Ok h -> Ok (h::l)
-            | Error l, Ok _ -> Error l
-            | Ok _, Error e -> Error [e]
-            | Error l, Error h -> Error (h::l)
-        ) (Ok []) list
-
 [<AutoOpen>]
 module Auto =
     let inline mapFst f (a,b) = f a,b

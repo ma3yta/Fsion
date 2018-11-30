@@ -23,12 +23,14 @@ module API =
             | o ->
                 tryCast o
                 |> Result.ofOption "not a valid %s: %A" (Text.toString t.Name) o
+                |> Result.mapError Text
                 |> Result.map Some
         match t with
         | TypeType ->
             tryCast o
             |> Option.bind Text.ofString
             |> Result.ofOption "type not text"
+            |> Result.mapError Text
             |> Result.bind (function
                 | IsText unset -> Ok None
                 | t -> FsionType.Parse t |> Result.map Some
@@ -97,13 +99,19 @@ module API =
                 tryCast attr
                 |> Option.bind Text.ofString
                 |> Result.ofOption "Attribute not a string"
+                |> Result.mapError Text
                 |> Result.bind (Selector.attributeId context) 
 
             Ok (fun e a d v -> e,a,d,v)
             <*> (tryCast uri |> Option.bind Text.ofString
-                 |> Result.ofOption "Uri not a string" |> Result.bind (Selector.entity context))
+                 |> Result.ofOption "Uri not a string"
+                 |> Result.mapError Text
+                 |> Result.bind (Selector.entity context))
             <*> attribute
-            <*> (tryCast dt |> Result.ofOption "Date not valid" |> Result.map Date.ofDateTime)
+            <*> (tryCast dt
+                 |> Result.ofOption "Date not valid"
+                 |> Result.mapError Text
+                 |> Result.map Date.ofDateTime)
             <*> (if isNull value then Text "Value is null" |> Error
                  else match attribute with
                       | Ok a ->

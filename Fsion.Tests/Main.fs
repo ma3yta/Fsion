@@ -5,7 +5,7 @@ open Expecto
 let tests =
     testList null [
         MapSlimTests.mapSlimTests
-        TypesTests.bytePoolTests
+        BytePoolTests.bytePoolTests
         TypesTests.basicTypesTests
         SerializeTests.zigzagTests
         SerializeTests.arraySerializeTests

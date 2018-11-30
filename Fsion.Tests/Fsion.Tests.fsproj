@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Prelude.fs" />
     <Compile Include="MapSlimTests.fs" />
+    <Compile Include="BytePoolTests.fs" />
     <Compile Include="TypesTests.fs" />
     <Compile Include="DataSeriesTests.fs" />
     <Compile Include="DatabaseTests.fs" />
@@ -16,6 +17,7 @@
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Fsion.CSharp\Fsion.CSharp.csproj" />
     <ProjectReference Include="..\Fsion\Fsion.fsproj" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
