@@ -5,17 +5,39 @@ open System.Collections.Generic
 open Expecto
 open Fsion
 
-let unitTests =
-    
-    let groupByGenericTest (items : ('a * int) list) =
-        let ms = MapSlim()
-        
-        List.iter (fun (k,v) ->
-            let t = &ms.RefGet k
-            t <- t+v
-        ) items
+type KeyWithHash =
+    val key : uint64
+    val hashCode : int
+    new(i:uint64, hashCode: int) = { key = i; hashCode = hashCode }
+    interface IEquatable<KeyWithHash> with
+        member m.Equals (o:KeyWithHash) =
+            m.key = o.key
+    override m.Equals(o:obj) =
+        o :? KeyWithHash && (o :?> KeyWithHash).key = m.key
+    override m.GetHashCode() = m.hashCode
 
+let unitTests =
+
+    let getRefGenericTest (items: ('a * int) list, check: 'a) =
         let actual =
+            let ms = MapSlim()
+            List.iter ms.Set items
+            ms.GetOption check
+
+        let expected =
+            let v = List.fold (fun m (k,v) -> Map.add k v m) Map.empty items
+                    |> Map.tryFind check
+            match v with | Some v -> ValueSome v | None -> ValueNone
+
+        Expect.equal actual expected "group by"
+
+    let groupByGenericTest (items : ('a * int) list) =
+        let actual =
+            let ms = MapSlim()
+            List.iter (fun (k,v) ->
+                let t = &ms.GetRef k
+                t <- t+v
+            ) items
             List.init ms.Count ms.Item
             |> List.sort
 
@@ -28,31 +50,44 @@ let unitTests =
 
     testList "unit tests" [
 
-        testAsync "tryget none" {
+        testAsync "get none" {
             let ms = MapSlim()
-            Expect.equal (ms.TryGet 8) None "none"
+            Expect.equal (ms.GetOption 8) ValueNone "none"
         }
 
-        testAsync "tryget one none" {
+        testAsync "get one none" {
             let ms = MapSlim()
-            let x = &ms.RefGet 7
+            let x = &ms.GetRef 7
             x <- x + 1
-            Expect.equal (ms.TryGet 8) None "none"
+            Expect.equal (ms.GetOption 8) ValueNone "none"
         }
 
-        testAsync "tryget set" {
+        testAsync "get one some" {
             let ms = MapSlim()
             ms.Set(7,11)
-            Expect.equal (ms.TryGet 7) (Some 11) "some"
+            Expect.equal (ms.GetOption 7) (ValueSome 11) "some"
         }
 
-        testAsync "refget update" {
+        testAsync "same hashcode" {
             let ms = MapSlim()
-            let x = &ms.RefGet 7
+            let key1 = KeyWithHash(7UL, 3)
+            ms.Set(key1,11)
+            let key2 = KeyWithHash(19UL, 3)
+            ms.Set(key2,53)
+            let key3 = KeyWithHash(27UL, 3)
+            ms.Set(key3,99)
+            Expect.equal (ms.GetOption key1) (ValueSome 11) "key1"
+            Expect.equal (ms.GetOption key2) (ValueSome 53) "key2"
+            Expect.equal (ms.GetOption key3) (ValueSome 99) "key3"
+        }
+
+        testAsync "getref update" {
+            let ms = MapSlim()
+            let x = &ms.GetRef 7
             x <- x + 1
-            let x = &ms.RefGet 7
+            let x = &ms.GetRef 7
             x <- x + 3
-            Expect.equal (ms.TryGet 7) (Some 4) "update"
+            Expect.equal (ms.GetOption 7) (ValueSome 4) "update"
         }
 
         testAsync "count" {
@@ -62,6 +97,23 @@ let unitTests =
             Expect.equal (ms.Count) 100 "count"
         }
 
+        testAsync "item" {
+            let ms = MapSlim()
+            ms.Set(5,11)
+            ms.Set(3,53)
+            Expect.equal (ms.Item 0) (5,11) "item 0"
+            Expect.equal (ms.Item 1) (3,53) "item 1"
+        }
+
+        testProp "get ref uint32"
+            (getRefGenericTest : ((uint32 * int) list) * uint32 -> unit)
+
+        testProp "get ref char"
+            (getRefGenericTest : ((char * int) list) * char -> unit)
+
+        testProp "get ref text"
+            (getRefGenericTest : ((Text * int) list) * Text -> unit)
+
         testProp "group by uint32"
             (groupByGenericTest : (uint32 * int) list -> unit)
 
@@ -70,7 +122,6 @@ let unitTests =
 
         testProp "group by text"
             (groupByGenericTest : (Text * int) list -> unit)
-        // TODO: number tests, item test, prop tests
     ]
 
 let performanceTests =
@@ -87,18 +138,21 @@ let performanceTests =
 
     testList "performance" [
 
-        testSequenced <| testAsync "general" {
+        testSequenced <| testAsync "set" {
             let keys =
-                let size, aggCount = 5_000, 250
+                let size, aggCount = 5000, 250
                 let rand = Random 11231992
-                Array.init size (fun _ -> rand.Next(size/aggCount))
+                Array.init size (fun _ ->
+                    let i = uint64 (rand.Next(size/aggCount))
+                    KeyWithHash(i, HashCode.Combine i)
+                )
             Expect.isFasterThan
                 (fun () ->
-                    let refDict = MapSlim()
+                    let ms = MapSlim()
                     for i = 0 to keys.Length-1 do
                         let k = keys.[i]
-                        let v = &refDict.RefGet k
-                        v <- v + k
+                        let v = &ms.GetRef k
+                        v <- v + 1
                 )
                 (fun () ->
                     let dict = Dictionary()
@@ -106,53 +160,52 @@ let performanceTests =
                         let k = keys.[i]
                         let mutable t = Unchecked.defaultof<_>
                         if dict.TryGetValue(k, &t) then
-                            dict.[k] <- t + k
+                            dict.[k] <- t + 1
                         else
-                            dict.Add(k,k)
+                            dict.Add(k,1)
                 )
-                "mapslim general"
+                "mapslim set"
+        }
+
+        testSequenced <| testAsync "get" {
+            let n = 5000
+            let ms = MapSlim()
+            let dict = Dictionary()
+            let keys = Array.init n (fun i ->
+                let i = uint64 i
+                KeyWithHash(i, HashCode.Combine i)
+            )
+            for i = 0 to n-1 do
+                let k = keys.[i]
+                ms.Set(k,k)
+                dict.Add(k,k)
+            Expect.isFasterThan
+                (fun () ->
+                    for i = 0 to n-1 do
+                        ms.GetOption (keys.[i]) |> ignore
+                )
+                (fun () ->
+                    for i = 0 to n-1 do
+                        dict.TryGetValue(keys.[i]) |> ignore
+                )
+                "mapslim get"
         }
 
         testSequenced <| testAsync "memoize" {
+            let n = 5000
             Expect.isFasterThan
                 (fun () ->
                     let times2 = memoize ((*)2)
-                    for i = 0 to 99 do
+                    for i = 0 to n-1 do
                         times2 i |> ignore
                 )
                 (fun () ->
                     let times2 = memoizeOld ((*)2)
-                    for i = 0 to 99 do
+                    for i = 0 to n-1 do
                         times2 i |> ignore
                 )
                 "mapslim memoize"
         }
-
-
-        //testSequenced <| testAsync "general2" {
-        //    let keys =
-        //        let size, aggCount = 5_000, 250
-        //        let rand = Random 11231992
-        //        Array.init size (fun _ -> rand.Next(size/aggCount))
-        //    Expect.isFasterThan
-        //        (fun () ->
-        //            let refDict = MapSlim2()
-        //            for i = 0 to keys.Length-1 do
-        //                let k = keys.[i]
-        //                let v = &refDict.RefGet k
-        //                v <- v + k
-        //        )
-        //        (fun () ->
-        //            let refDict = MapSlim()
-        //            for i = 0 to keys.Length-1 do
-        //                let k = keys.[i]
-        //                let v = &refDict.RefGet k
-        //                v <- v + k
-        //        )
-        //        "mapslim general"
-        //}
-
-        // TODO: one more perf test
     ]
 
 let threadingTests =
@@ -163,14 +216,14 @@ let threadingTests =
         
         testAsync "rand update" {
             lock ms (fun () ->
-                let v = &ms.RefGet(rand.Next n)
+                let v = &ms.GetRef(rand.Next n)
                 v <- 1-v
             )
         }
 
         testAsync "rand get" {
             let i = rand.Next n
-            let v = ms.TryGet i |> Option.defaultValue 0
+            let v = defaultValueArg (ms.GetOption i) 0
             Expect.isTrue (v=0 || v=1) "get is 0 or 1"
         }
 
