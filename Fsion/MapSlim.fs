@@ -62,42 +62,42 @@ type MapSlim<'TKey,'TValue when 'TKey : equality and 'TKey :> IEquatable<'TKey>>
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
-        while i <> -1 && not(key.Equals(entries.[i].key)) do
+        while i >= 0 && not(key.Equals(entries.[i].key)) do
             i <- entries.[i].next
-        if i = -1 then
+        if i >= 0 then entries.[i].value <- value
+        else
             let v = &m.AddKey(key, hashCode)
             v <- value
-        else entries.[i].value <- value
 
     member m.GetRef(key:'TKey) : 'TValue byref =
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
-        while i <> -1 && not(key.Equals(entries.[i].key)) do
+        while i >= 0 && not(key.Equals(entries.[i].key)) do // check >= in IL
             i <- entries.[i].next
-        if i = -1 then &m.AddKey(key, hashCode)
-        else &entries.[i].value
+        if i >= 0 then &entries.[i].value
+        else &m.AddKey(key, hashCode)
 
     member m.GetRef(key:'TKey, added: bool outref) : 'TValue byref =
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
-        while i <> -1 && not(key.Equals(entries.[i].key)) do
+        while i >= 0 && not(key.Equals(entries.[i].key)) do
             i <- entries.[i].next
-        if i = -1 then
-            added <- true
-            &m.AddKey(key, hashCode)
-        else
+        if i >= 0 then
             added <- false
             &entries.[i].value
+        else
+            added <- true
+            &m.AddKey(key, hashCode)
 
     member m.GetOption(key:'TKey) : 'TValue voption =
         let entries = m.entries
         let mutable i = entries.[key.GetHashCode() &&& (entries.Length-1)].bucket-1
-        while i <> -1 && not(key.Equals(entries.[i].key)) do
+        while i >= 0 && not(key.Equals(entries.[i].key)) do
             i <- entries.[i].next
-        if i = -1 then ValueNone
-        else ValueSome entries.[i].value
+        if i >= 0 then ValueSome entries.[i].value
+        else ValueNone
 
     member m.Item(i) : 'TKey * 'TValue =
         let entries = m.entries.[i]

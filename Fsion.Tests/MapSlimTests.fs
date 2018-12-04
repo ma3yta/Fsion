@@ -142,9 +142,10 @@ let performanceTests =
             let keys =
                 let size, aggCount = 5000, 250
                 let rand = Random 11231992
+                let hashCode = memoize (fun _ -> rand.Next())
                 Array.init size (fun _ ->
                     let i = uint64 (rand.Next(size/aggCount))
-                    KeyWithHash(i, HashCode.Combine i)
+                    KeyWithHash(i, hashCode i)
                 )
             Expect.isFasterThan
                 (fun () ->
@@ -171,9 +172,11 @@ let performanceTests =
             let n = 5000
             let ms = MapSlim()
             let dict = Dictionary()
+            let rand = Random 11231992
+            let hashCode = memoize (fun _ -> rand.Next())
             let keys = Array.init n (fun i ->
                 let i = uint64 i
-                KeyWithHash(i, HashCode.Combine i)
+                KeyWithHash(i, hashCode i)
             )
             for i = 0 to n-1 do
                 let k = keys.[i]
