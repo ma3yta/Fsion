@@ -168,7 +168,7 @@ let performanceTests =
                 "mapslim set"
         }
 
-        testSequenced <| testAsync "get" {
+        testSequenced <| ptestAsync "get" {
             let n = 5000
             let ms = MapSlim()
             let dict = Dictionary()
