@@ -94,7 +94,7 @@ let unitTests =
             let ms = MapSlim()
             for i = 99 downto 0 do
                 ms.Set(i,i)
-            Expect.equal (ms.Count) 100 "count"
+            Expect.equal ms.Count 100 "count"
         }
 
         testAsync "item" {

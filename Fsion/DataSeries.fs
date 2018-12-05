@@ -422,7 +422,7 @@ module internal StreamSerialize =
         let ts = SetSlim()
         let rec repeat i =
             if i<>0 then
-                textGet s |> ts.Get |> ignore
+                textGet s |> ts.Add |> ignore
                 repeat (i-1)
         repeat l
         ts

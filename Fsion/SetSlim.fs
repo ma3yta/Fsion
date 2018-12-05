@@ -56,7 +56,7 @@ type SetSlim<'k when 'k : equality and 'k :> IEquatable<'k>> =
         m.count <- i+1
         i
 
-    member m.Get(key:'k) =
+    member m.Add(key:'k) =
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
@@ -65,7 +65,7 @@ type SetSlim<'k when 'k : equality and 'k :> IEquatable<'k>> =
         if i >= 0 then i
         else m.AddKey(key, hashCode)
 
-    member m.GetOption(key:'k) =
+    member m.Get(key:'k) =
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1

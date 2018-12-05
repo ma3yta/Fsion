@@ -402,7 +402,7 @@ let streamSerializeTests =
             let textListSet ms (l:Text Set) =
                 let s = SetSlim l.Count
                 Set.toSeq l
-                |> Seq.iter (s.Get >> ignore)
+                |> Seq.iter (s.Add >> ignore)
                 StreamSerialize.textSetSet ms s
 
             let textListGet ms =

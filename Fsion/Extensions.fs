@@ -11,6 +11,14 @@ module VOption =
         match o with
         | ValueSome i -> i
         | ValueNone -> failwith "ValueNone"
+    let isSome o =
+        match o with
+        | ValueSome _ -> true
+        | ValueNone -> false
+    let isNone o =
+        match o with
+        | ValueSome _ -> false
+        | ValueNone -> true
     let ofOption o =
         match o with
         | Some i -> ValueSome i

@@ -50,12 +50,12 @@ module Database =
             member __.GetText (TextId i) =
                 texts.Item(int i)
             member __.TryGetTextId t =
-                texts.GetOption t
+                texts.Get t
                 |> VOption.map (uint32 >> TextId)
             member __.GetTextId t =
                 Monitor.Enter texts
                 try
-                    texts.Get t |> uint32 |> TextId
+                    texts.Add t |> uint32 |> TextId
                 finally
                     Monitor.Exit texts
             member __.GetData (DataId i) =
