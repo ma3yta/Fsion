@@ -6,8 +6,8 @@ open System.Runtime.CompilerServices
 [<Struct>]
 type private Entry<'k> =
     val mutable bucket : int
-    val mutable key : 'k
     val mutable next : int
+    val mutable key : 'k
 
 type private InitialHolder<'k>() =
     static let initial = Array.zeroCreate<Entry<'k>> 1

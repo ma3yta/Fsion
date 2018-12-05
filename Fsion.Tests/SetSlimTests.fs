@@ -117,7 +117,7 @@ let performanceTests =
         testSequenced <| testAsync "set" {
             let keys =
                 let size, aggCount = 5000, 250
-                let rand = Random 11231992
+                let rand = Random 577656
                 let hashCode = memoize (fun _ -> rand.Next())
                 Array.init size (fun _ ->
                     let i = uint64 (rand.Next(size/aggCount))
@@ -143,7 +143,7 @@ let performanceTests =
             let n = 5000
             let ss = SetSlim()
             let hs = HashSet()
-            let rand = Random 11231992
+            let rand = Random 46576
             let hashCode = memoize (fun _ -> rand.Next())
             let keys = Array.init n (fun i ->
                 let i = uint64 i
@@ -168,7 +168,7 @@ let performanceTests =
 
 let threadingTests =
     let ss = SetSlim()
-    let rand = Random 887363
+    let rand = Random 46475
     let n = 10
     testList "threading" [
         

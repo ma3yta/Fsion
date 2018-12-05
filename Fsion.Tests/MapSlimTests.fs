@@ -140,8 +140,8 @@ let performanceTests =
 
         testSequenced <| testAsync "set" {
             let keys =
-                let size, aggCount = 5000, 250
-                let rand = Random 11231992
+                let size, aggCount = 500, 25
+                let rand = Random 7567675
                 let hashCode = memoize (fun _ -> rand.Next())
                 Array.init size (fun _ ->
                     let i = uint64 (rand.Next(size/aggCount))
@@ -168,11 +168,11 @@ let performanceTests =
                 "mapslim set"
         }
 
-        testSequenced <| ptestAsync "get" {
-            let n = 5000
+        testSequenced <| testAsync "get" {
+            let n = 50
             let ms = MapSlim()
             let dict = Dictionary()
-            let rand = Random 11231992
+            let rand = Random 53453
             let hashCode = memoize (fun _ -> rand.Next())
             let keys = Array.init n (fun i ->
                 let i = uint64 i
