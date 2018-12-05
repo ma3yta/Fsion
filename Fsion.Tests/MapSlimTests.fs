@@ -25,9 +25,9 @@ let unitTests =
             ms.GetOption check
 
         let expected =
-            let v = List.fold (fun m (k,v) -> Map.add k v m) Map.empty items
-                    |> Map.tryFind check
-            match v with | Some v -> ValueSome v | None -> ValueNone
+            List.fold (fun m (k,v) -> Map.add k v m) Map.empty items
+            |> Map.tryFind check
+            |> VOption.ofOption
 
         Expect.equal actual expected "group by"
 
@@ -127,7 +127,7 @@ let unitTests =
 let performanceTests =
 
     let memoizeOld (f:'a->'b) =
-        let d = ResizeMap HashIdentity.Structural
+        let d = Dictionary HashIdentity.Structural
         fun a ->
             let mutable b = Unchecked.defaultof<_>
             if d.TryGetValue(a,&b) then b

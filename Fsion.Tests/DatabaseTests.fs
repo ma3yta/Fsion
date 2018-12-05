@@ -10,17 +10,17 @@ let dataCacheTestList (cache:Database) = [
 
             testAsync "set get" {
                 let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                cache.Set (Entity(EntityType.attribute,1u), AttributeId.time) dataSeries
-                let actual = cache.Get (Entity(EntityType.attribute,1u), AttributeId.time)
-                Expect.equal actual (Some dataSeries) "bytes 1"
+                cache.Set (EntityAttribute(Entity(EntityType.attribute,1u), AttributeId.time)) dataSeries
+                let actual = cache.Get (EntityAttribute(Entity(EntityType.attribute,1u), AttributeId.time))
+                Expect.equal actual (ValueSome dataSeries) "bytes 1"
             }
 
             testAsync "ups" {
                 let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                cache.Set (Entity(EntityType.attribute,2u), AttributeId.time) dataSeries
-                cache.Ups (Entity(EntityType.attribute,2u), AttributeId.time) (Date 2u,Tx 2u,2L)
-                let actual = cache.Get (Entity(EntityType.attribute,2u), AttributeId.time)
-                let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries |> Some
+                cache.Set (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time)) dataSeries
+                cache.Ups (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time)) (Date 2u,Tx 2u,2L)
+                let actual = cache.Get (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time))
+                let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries |> ValueSome
                 Expect.equal actual expected "append"
             }
         ]

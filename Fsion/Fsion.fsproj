@@ -14,6 +14,8 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="MapSlim.fs" />
+    <Compile Include="SetSlim.fs" />
+    <Compile Include="ListSlim.fs" />
     <Compile Include="BytePool.fs" />
     <Compile Include="Extensions.fs" />
     <Compile Include="Types.fs" />

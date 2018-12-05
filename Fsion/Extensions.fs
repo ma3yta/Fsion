@@ -2,7 +2,19 @@
 
 open System
 
-type ResizeMap<'a,'b> = Collections.Generic.Dictionary<'a,'b>
+module VOption =
+    let map f o =
+        match o with
+        | ValueSome i -> ValueSome (f i)
+        | ValueNone -> ValueNone
+    let get o =
+        match o with
+        | ValueSome i -> i
+        | ValueNone -> failwith "ValueNone"
+    let ofOption o =
+        match o with
+        | Some i -> ValueSome i
+        | None -> ValueNone
 
 module Result =
     let apply f x =

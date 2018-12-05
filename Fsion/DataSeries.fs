@@ -412,31 +412,35 @@ module internal StreamSerialize =
         read s bs 0 l
         bs
 
-    let textListSet (s:Stream) (l:Text ResizeArray) =
+    let textSetSet (s:Stream) (l:Text SetSlim) =
         uint32Set s (uint32 l.Count)
-        Seq.iter (textSet s) l
+        for i = 0 to l.Count-1 do
+            l.Item i |> textSet s
 
-    let textListLoad (s:Stream) (a:Text ResizeArray) =
+    let textSetLoad (s:Stream) =
         let l = uint32Get s |> int
-        a.Clear()
+        let ts = SetSlim()
         let rec repeat i =
             if i<>0 then
-                textGet s |> a.Add
+                textGet s |> ts.Get |> ignore
                 repeat (i-1)
         repeat l
+        ts
 
-    let byteListSet (s:Stream) (l:byte[] ResizeArray) =
+    let byteListSet (s:Stream) (l:byte[] ListSlim) =
         uint32Set s (uint32 l.Count)
-        Seq.iter (bytesSet s) l
+        for i = 0 to l.Count-1 do
+            l.Item i |> bytesSet s
 
-    let byteListLoad (s:Stream) (a:byte[] ResizeArray) =
+    let byteListLoad (s:Stream) =
         let l = uint32Get s |> int
-        a.Clear()
+        let bs = ListSlim()
         let rec repeat i =
             if i<>0 then
-                bytesGet s |> a.Add
+                bytesGet s |> bs.Add |> ignore
                 repeat (i-1)
         repeat l
+        bs
 
     let entityTypeSet (s:Stream) (EntityType et) =
         uint32Set s et
@@ -460,7 +464,7 @@ module internal StreamSerialize =
         let aid = uint32Get s
         AttributeId aid
 
-    let entityAttributeSet (s:Stream) ((entity,attribute):Entity * AttributeId) =
+    let entityAttributeSet (s:Stream) (EntityAttribute(entity,attribute)) =
         let bs,i =
             ArraySerialize.entitySet entity ArraySerialize.empty
             |> ArraySerialize.attributeSet attribute
@@ -468,21 +472,22 @@ module internal StreamSerialize =
         BytePool.Return bs
 
     let entityAttributeGet (s:Stream) =
-        entityGet s, attributeGet s
+        EntityAttribute(entityGet s, attributeGet s)
 
-    let dataSeriesDictionarySet (s:Stream) (dictionary:Dictionary<_,_>) =
-        uint32Set s (uint32 dictionary.Count)
-        dictionary |> Seq.iter (fun kv ->
-            entityAttributeSet s kv.Key
-            let (DataSeries bytes) = kv.Value
+    let dataSeriesMapSet (s:Stream) (m:MapSlim<_,_>) =
+        uint32Set s (uint32 m.Count)
+        for i = 0 to m.Count-1 do
+            let k,v = m.Item i
+            entityAttributeSet s k
+            let (DataSeries bytes) = v
             bytesSet s bytes
-        )
 
-    let dataSeriesDictionaryLoad (s:Stream) (d:Dictionary<_,_>) =
+    let dataSeriesMapLoad (s:Stream) =
         let l = uint32Get s |> int
-        d.Clear()
+        let m = MapSlim l
         for i = 0 to l-1 do
-            d.Add(entityAttributeGet s, bytesGet s |> DataSeries)
+            m.Set(entityAttributeGet s, bytesGet s |> DataSeries)
+        m
 
     let transactionDataSet (s:Stream) (transactionData:TransactionData) =
 

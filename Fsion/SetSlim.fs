@@ -4,20 +4,19 @@ open System
 open System.Runtime.CompilerServices
 
 [<Struct>]
-type private Entry<'k,'v> =
+type private Entry<'k> =
     val mutable bucket : int
     val mutable key : 'k
-    val mutable value : 'v
     val mutable next : int
 
-type private InitialHolder<'k,'v>() =
-    static let initial = Array.zeroCreate<Entry<'k,'v>> 1
+type private InitialHolder<'k>() =
+    static let initial = Array.zeroCreate<Entry<'k>> 1
     static member inline Initial = initial
 
-type MapSlim<'k,'v when 'k : equality and 'k :> IEquatable<'k>> =
+type SetSlim<'k when 'k : equality and 'k :> IEquatable<'k>> =
     val mutable private count : int
-    val mutable private entries : Entry<'k,'v>[]
-    new() = {count=0; entries=InitialHolder.Initial}
+    val mutable private entries : Entry<'k>[]
+    new() = {count=0; entries=InitialHolder<_>.Initial}
     new(capacity:int) = {
         count = 0
         entries =
@@ -35,9 +34,8 @@ type MapSlim<'k,'v when 'k : equality and 'k :> IEquatable<'k>> =
 
     member private m.Resize() =
         let oldEntries = m.entries
-        let entries = Array.zeroCreate<Entry<_,_>> (oldEntries.Length*2)
+        let entries = Array.zeroCreate<Entry<_>> (oldEntries.Length*2)
         for i = oldEntries.Length-1 downto 0 do
-            entries.[i].value <- oldEntries.[i].value
             entries.[i].key <- oldEntries.[i].key
             let bi = entries.[i].key.GetHashCode() &&& (entries.Length-1)
             entries.[i].next <- entries.[bi].bucket-1
@@ -56,59 +54,25 @@ type MapSlim<'k,'v when 'k : equality and 'k :> IEquatable<'k>> =
         entries.[i].next <- entries.[bucketIndex].bucket-1
         entries.[bucketIndex].bucket <- i+1
         m.count <- i+1
-        &entries.[i].value
+        i
 
-    member m.Set(key:'k, value: 'v) =
+    member m.Get(key:'k) =
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
         while i >= 0 && not(key.Equals(entries.[i].key)) do
             i <- entries.[i].next
-        if i >= 0 then entries.[i].value <- value
-        else
-            let v = &m.AddKey(key, hashCode)
-            v <- value
+        if i >= 0 then i
+        else m.AddKey(key, hashCode)
 
-    member m.GetRef(key:'k) : 'v byref =
-        let entries = m.entries
-        let hashCode = key.GetHashCode()
-        let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
-        while i >= 0 && not(key.Equals(entries.[i].key)) do // check >= in IL
-            i <- entries.[i].next
-        if i >= 0 then &entries.[i].value
-        else &m.AddKey(key, hashCode)
-
-    member m.GetRef(key:'k, added: bool outref) : 'v byref =
+    member m.GetOption(key:'k) =
         let entries = m.entries
         let hashCode = key.GetHashCode()
         let mutable i = entries.[hashCode &&& (entries.Length-1)].bucket-1
         while i >= 0 && not(key.Equals(entries.[i].key)) do
             i <- entries.[i].next
-        if i >= 0 then
-            added <- false
-            &entries.[i].value
-        else
-            added <- true
-            &m.AddKey(key, hashCode)
-
-    member m.GetOption(key:'k) : 'v voption =
-        let entries = m.entries
-        let mutable i = entries.[key.GetHashCode() &&& (entries.Length-1)].bucket-1
-        while i >= 0 && not(key.Equals(entries.[i].key)) do
-            i <- entries.[i].next
-        if i >= 0 then ValueSome entries.[i].value
+        if i >= 0 then ValueSome i
         else ValueNone
 
-    member m.Item(i) : 'k * 'v =
-        let entries = m.entries.[i]
-        entries.key, entries.value
-
-[<AutoOpen>]
-module MapSlimAutoOpen =
-    let memoize (f:'a->'b) =
-        let d = MapSlim()
-        fun a ->
-            let mutable isNew = false
-            let b = &d.GetRef(a, &isNew)
-            if isNew then b <- f a
-            b
+    member m.Item(i) : 'k =
+        m.entries.[i].key

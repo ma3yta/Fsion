@@ -92,6 +92,32 @@ type AttributeId =
     static member attribute_type = AttributeId 2u
     static member attribute_isset = AttributeId 3u
 
+[<Struct;CustomEquality;CustomComparison>]
+type EntityAttribute =
+    | EntityAttribute of Entity * AttributeId
+    interface IEquatable<EntityAttribute> with
+        member m.Equals (EntityAttribute(oe,oa)) =
+            let (EntityAttribute(e,a)) = m
+            oe = e && oa = a
+    override m.Equals(o:obj) =
+        match o with
+        | :? EntityAttribute as ea ->
+            let (EntityAttribute(oe,oa)) = m
+            let (EntityAttribute(e,a)) = m
+            oe = e && oa = a
+        | _ -> false
+    interface IComparable with
+        member m.CompareTo o =
+            match o with
+            | :? EntityAttribute as ea ->
+                let (EntityAttribute(oe,oa)) = m
+                let (EntityAttribute(e,a)) = m
+                0
+            | _ -> 0
+    override m.GetHashCode() =
+        let (EntityAttribute(e,a)) = m
+        e.GetHashCode() ^^^ a.GetHashCode()
+
 [<Struct>]
 type TextId =
     internal

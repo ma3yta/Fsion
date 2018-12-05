@@ -89,8 +89,8 @@ module Selector =
                 | UriUri ->
                     let db = match cx with | Local i -> i | Create (i,_,_,_) -> i
                     match db.TryGetTextId (uri.Substring(0,i) |> Text) with
-                    | None -> Text("entity type uri not recognised: "+uri.Substring(0,i)) |> Error
-                    | Some textId ->
+                    | ValueNone -> Text("entity type uri not recognised: "+uri.Substring(0,i)) |> Error
+                    | ValueSome textId ->
                         match entityTypeUriLookup textId with
                         | None -> Text("entity type uri not an entity type: "+uri.Substring(0,i)) |> Error
                         | Some et -> Ok et
@@ -116,8 +116,8 @@ module Selector =
                 | UriUri ->
                     let db = match cx with | Local i -> i | Create (i,_,_,_) -> i
                     match db.TryGetTextId (uri.Substring(0,i) |> Text) with
-                    | None -> Text("entity uri not recognised: "+uri.Substring(i+1,uri.Length)) |> Error
-                    | Some textId ->
+                    | ValueNone -> Text("entity uri not recognised: "+uri.Substring(i+1,uri.Length)) |> Error
+                    | ValueSome textId ->
                         match entityUriLookup textId with
                         | None -> Text("entity uri not recognised on entity type: "+uri) |> Error
                         | Some i -> Ok i
@@ -136,8 +136,8 @@ module Selector =
         | UriUri ->
             let db = match cx with | Local i -> i | Create (i,_,_,_) -> i
             match db.TryGetTextId text with
-            | None -> "attribute uri not recognised: " + text |> Error
-            | Some textId ->
+            | ValueNone -> "attribute uri not recognised: " + text |> Error
+            | ValueSome textId ->
                 match attributeUriLookup textId with
                 | None -> "uri not recognised as an attribute: " + text |> Error
                 | Some i -> AttributeId i |> Ok
@@ -152,9 +152,9 @@ module Selector =
 
     let attributeType (cx:Context) (attribute:AttributeId) = // TODO: assumes type exists and is same over time
         let db = match cx with | Local i -> i | Create (i,_,_,_) -> i
-        db.Get(toEntity attribute, AttributeId.attribute_type)
-        |> Option.map (DataSeries.get Date.maxValue Tx.maxValue)
-        |> Option.get
+        db.Get(EntityAttribute(toEntity attribute, AttributeId.attribute_type))
+        |> VOption.map (DataSeries.get Date.maxValue Tx.maxValue)
+        |> VOption.get
         |> trd
         |> FsionValue.decodeType
         |> Option.get

@@ -3,15 +3,14 @@
 open System
 open System.IO
 open System.Threading
-open System.Collections.Generic
 open Fsion
 
 type Database =
     inherit IDisposable
-    abstract member Get : (Entity * AttributeId) -> DataSeries option
-    abstract member Set : (Entity * AttributeId) -> DataSeries -> unit
-    abstract member Ups : (Entity * AttributeId) -> (Date * Tx * int64) -> unit
-    abstract member TryGetTextId : Text -> TextId option
+    abstract member Get : EntityAttribute -> DataSeries voption
+    abstract member Set : EntityAttribute -> DataSeries -> unit
+    abstract member Ups : EntityAttribute -> (Date * Tx * int64) -> unit
+    abstract member TryGetTextId : Text -> TextId voption
     abstract member GetTextId : Text -> TextId
     abstract member GetText : TextId -> Text
     abstract member GetDataId : byte[] -> DataId
@@ -24,79 +23,49 @@ type Database =
 module Database =
 
     let createMemory (snapshotPath:string) =
-        let dataSeriesDictionary = Dictionary<Entity * AttributeId, DataSeries>()
-        let dataSeriesLock = new ReaderWriterLockSlim()
-        let stringDictionary = Dictionary StringComparer.Ordinal
-        let texts = ResizeArray()
-        let textLock = new ReaderWriterLockSlim()
-        let bytes = ResizeArray()
-        let byteLock = new ReaderWriterLockSlim()
+        let mutable dataSeriesMap = MapSlim()
+        let mutable texts = SetSlim()
+        let mutable bytes = ListSlim()
         { new Database with
             member __.Get entityAttribute =
-                dataSeriesLock.EnterReadLock()
-                try
-                    match dataSeriesDictionary.TryGetValue entityAttribute with
-                    | true, ds -> Some ds
-                    | false, _ -> None
-                finally
-                    dataSeriesLock.ExitReadLock()
+                dataSeriesMap.GetOption entityAttribute
             member __.Set entityAttribute dataSeries =
-                dataSeriesLock.EnterWriteLock()
+                Monitor.Enter dataSeriesMap
                 try
-                    dataSeriesDictionary.[entityAttribute] <- dataSeries
+                    dataSeriesMap.Set(entityAttribute, dataSeries)
                 finally
-                    dataSeriesLock.ExitWriteLock()
+                    Monitor.Exit dataSeriesMap
             member __.Ups entityAttribute datum =
-                dataSeriesLock.EnterWriteLock()
+                Monitor.Enter dataSeriesMap
                 try
-                    dataSeriesDictionary.[entityAttribute] <-
-                        match dataSeriesDictionary.TryGetValue entityAttribute with
-                        | true, dataSeries ->
-                            DataSeries.append datum dataSeries
-                        | false, _ ->
+                    let mutable added = false
+                    let dataSeries = &dataSeriesMap.GetRef(entityAttribute, &added)
+                    dataSeries <-
+                        if added then
                             DataSeries.single datum
+                        else
+                            DataSeries.append datum dataSeries
                 finally
-                    dataSeriesLock.ExitWriteLock()
+                    Monitor.Exit dataSeriesMap
             member __.GetText (TextId i) =
-                textLock.EnterReadLock()
+                texts.Item(int i)
+            member __.TryGetTextId t =
+                texts.GetOption t
+                |> VOption.map (uint32 >> TextId)
+            member __.GetTextId t =
+                Monitor.Enter texts
                 try
-                    texts.[int i]
+                    texts.Get t |> uint32 |> TextId
                 finally
-                    textLock.ExitReadLock()
-            member __.TryGetTextId (Text s) =
-                textLock.EnterWriteLock()
-                try
-                    let mutable i = 0u
-                    if stringDictionary.TryGetValue(s, &i) then TextId i |> Some
-                    else None
-                finally
-                    textLock.ExitWriteLock()
-            member __.GetTextId (Text s) =
-                textLock.EnterWriteLock()
-                try
-                    let mutable i = 0u
-                    if stringDictionary.TryGetValue(s, &i) then TextId i
-                    else
-                        i <- uint32 texts.Count
-                        stringDictionary.Add(s,i)
-                        texts.Add (Text s)
-                        TextId i
-                finally
-                    textLock.ExitWriteLock()
+                    Monitor.Exit texts
             member __.GetData (DataId i) =
-                byteLock.EnterReadLock()
-                try
-                    bytes.[int i]
-                finally
-                    byteLock.ExitReadLock()
+                bytes.Item(int i)
             member __.GetDataId bs =
-                byteLock.EnterWriteLock()
+                Monitor.Enter bytes
                 try
-                    let i = uint32 bytes.Count
-                    bytes.Add bs
-                    DataId i
+                    bytes.Add bs |> uint32 |> DataId
                 finally
-                    byteLock.ExitWriteLock()
+                    Monitor.Exit bytes
             member __.SnapshotList() =
                 File.list snapshotPath "*.fsp"
                 |> Result.map (Array.choose (fun f ->
@@ -107,45 +76,28 @@ module Database =
                     )
                 )
             member __.SnapshotSave txId =
-                dataSeriesLock.EnterReadLock()
-                textLock.EnterReadLock()
-                byteLock.EnterReadLock()
-                try
-                    try
-                        use fs =
-                            Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
-                            |> File.Create
-                        StreamSerialize.dataSeriesDictionarySet fs dataSeriesDictionary
-                        StreamSerialize.textListSet fs texts
-                        StreamSerialize.byteListSet fs bytes
-                        Ok ()
-                    with e -> Error e
-                finally
-                    byteLock.ExitReadLock()
-                    textLock.ExitReadLock()
-                    dataSeriesLock.ExitReadLock()
-            member __.SnapshotLoad txId =
-                dataSeriesLock.EnterWriteLock()
-                textLock.EnterWriteLock()
-                byteLock.EnterWriteLock()
                 try
                     use fs =
-                        let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
-                        new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
-                    StreamSerialize.dataSeriesDictionaryLoad fs dataSeriesDictionary
-                    StreamSerialize.textListLoad fs texts
-                    StreamSerialize.byteListLoad fs bytes
+                        Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                        |> File.Create
+                    StreamSerialize.dataSeriesMapSet fs dataSeriesMap
+                    StreamSerialize.textSetSet fs texts
+                    StreamSerialize.byteListSet fs bytes
                     Ok ()
-                finally
-                    byteLock.ExitWriteLock()
-                    textLock.ExitWriteLock()
-                    dataSeriesLock.ExitWriteLock()
+                with e -> Error e
+            member __.SnapshotLoad txId =
+                use fs =
+                    let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                    new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
+                dataSeriesMap <- StreamSerialize.dataSeriesMapLoad fs
+                texts <- StreamSerialize.textSetLoad fs 
+                bytes <- StreamSerialize.byteListLoad fs
+                Ok ()
             member __.SnapshotDelete txId =
                 try
                     Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
                     |> File.Delete |> Ok
                 with e -> Error e
           interface IDisposable with
-            member __.Dispose() =
-                dataSeriesLock.Dispose()
+            member __.Dispose() = ()
         }

@@ -399,14 +399,16 @@ let streamSerializeTests =
 
         testProp "text list roundtrip" (fun texts ->
             
-            let textListSet ms (l:Text list) =
-                let a = ResizeArray l
-                StreamSerialize.textListSet ms a
+            let textListSet ms (l:Text Set) =
+                let s = SetSlim l.Count
+                Set.toSeq l
+                |> Seq.iter (s.Get >> ignore)
+                StreamSerialize.textSetSet ms s
 
             let textListGet ms =
-                let a = ResizeArray()
-                StreamSerialize.textListLoad ms a
-                List.ofSeq a
+                let s = StreamSerialize.textSetLoad ms
+                Seq.init s.Count s.Item
+                |> Set.ofSeq
 
             testRoundtrip textListSet textListGet texts
         )
@@ -414,13 +416,13 @@ let streamSerializeTests =
         testProp "bytes list roundtrip" (fun bytes ->
             
             let byteListSet ms (l:byte[] list) =
-                let a = ResizeArray l
-                StreamSerialize.byteListSet ms a
+                let s = ListSlim l.Length
+                List.iter (s.Add >> ignore) l
+                StreamSerialize.byteListSet ms s
 
             let byteListGet ms =
-                let a = ResizeArray()
-                StreamSerialize.byteListLoad ms a
-                List.ofSeq a
+                let s = StreamSerialize.byteListLoad ms
+                List.init s.Count s.Item
 
             testRoundtrip byteListSet byteListGet bytes
         )
@@ -444,13 +446,14 @@ let streamSerializeTests =
         testProp "dataseries dictionary roundtrip" (fun map ->
             
             let dataSeriesDictionarySet ms (m:Map<_,_>) =
-                let d = Dictionary m
-                StreamSerialize.dataSeriesDictionarySet ms d
+                let d = MapSlim m.Count
+                Map.toSeq m
+                |> Seq.iter d.Set
+                StreamSerialize.dataSeriesMapSet ms d
 
             let dataSeriesDictionaryGet ms =
-                let d = Dictionary()
-                StreamSerialize.dataSeriesDictionaryLoad ms d
-                d |> Seq.map (fun kv -> kv.Key, kv.Value) |> Map.ofSeq
+                let d = StreamSerialize.dataSeriesMapLoad ms
+                Seq.init d.Count d.Item |> Map.ofSeq
 
             testRoundtrip dataSeriesDictionarySet dataSeriesDictionaryGet map
         )
