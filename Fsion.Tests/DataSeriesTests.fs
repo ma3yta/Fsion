@@ -422,7 +422,7 @@ let streamSerializeTests =
 
             let byteListGet ms =
                 let s = StreamSerialize.byteListLoad ms
-                List.init s.Count s.Item
+                List.init s.Count (fun i -> s.[i])
 
             testRoundtrip byteListSet byteListGet bytes
         )

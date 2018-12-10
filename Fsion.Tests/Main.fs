@@ -6,6 +6,7 @@ let tests =
     testList null [
         MapSlimTests.mapSlimTests
         SetSlimTests.setSlimTests
+        ListSlimTests.listSlimTests
         BytePoolTests.bytePoolTests
         TypesTests.basicTypesTests
         SerializeTests.zigzagTests

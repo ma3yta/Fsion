@@ -10,6 +10,7 @@
     <Compile Include="Prelude.fs" />
     <Compile Include="MapSlimTests.fs" />
     <Compile Include="SetSlimTests.fs" />
+    <Compile Include="ListSlimTests.fs" />
     <Compile Include="BytePoolTests.fs" />
     <Compile Include="TypesTests.fs" />
     <Compile Include="DataSeriesTests.fs" />
