@@ -44,11 +44,11 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - Set up the repo (build, CI etc) - DONE
 - DataSeries with compression - DONE
 - Define internal APIs (DB, Log) with in memory and disk implementations - DONE
-- Attribute metadata and functionality - November?
-- Transactor - November?
-- Indexes - December?
-- Simple Excel API - December?
-- Large sample database
+- Simple Excel API - DONE
+- Attribute metadata and functionality - DONE but more to do
+- Transactor - DONE but more to do
+- Indexes - January
+- Large sample database - January
 - Other internal API implementations
 - Performance and resilience tests
 - Query language
