@@ -63,10 +63,10 @@ Target.create "AssemblyInfo" (fun _ ->
             AssemblyInfo.Version release.AssemblyVersion
             AssemblyInfo.FileVersion release.AssemblyVersion
             AssemblyInfo.InternalsVisibleTo "Fsion.Tests"
-            AssemblyInfo.InternalsVisibleTo "Fsion.Excel"
         ] (AssemblyInfoFileConfig(false,false,"Fsion"))
         normaliseFileToLFEnding filename
     createAssemblyInfo "Fsion"
+    createAssemblyInfo "Fsion.API"
 )
 
 Target.create "ProjectVersion" (fun _ ->
@@ -86,6 +86,7 @@ let build project =
     }) project
 
 Target.create "Build" (fun _ ->
+    build "Fsion.API/Fsion.API.fsproj"
     build "Fsion/Fsion.fsproj"
 )
 let isOk (pr:ProcessResult) =
@@ -95,13 +96,8 @@ Target.create "RunTest" (fun _ ->
 
     let runTest project =
         DotNet.exec (DotNet.Options.withDotNetCliPath dotnetExePath)
-             "run" ("-f netcoreapp2.1 -c release -p " + project)
+             "run" ("-f netcoreapp2.2 -c release -p " + project)
         |> isOk
-
-        if Environment.isWindows then
-            DotNet.exec (DotNet.Options.withDotNetCliPath dotnetExePath)
-             "run" ("-f net472 -c release -p " + project)
-            |> isOk
 
         project + ".TestResults.xml"
         |> Path.combine (Path.combine __SOURCE_DIRECTORY__ "bin")
@@ -135,6 +131,7 @@ Target.create "Pack" (fun _ ->
         |> DotNet.exec id <| ""
         |> ignore
     pack "Fsion"
+    pack "Fsion.API"
 )
 
 Target.create "Push" (fun _ ->

@@ -1,10 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>Fsion</AssemblyName>
     <PackageId>Fsion</PackageId>
     <Version>0.0.8</Version>
-    <TargetFrameworks>netstandard2.0;net472</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -24,6 +23,9 @@
     <Compile Include="ValueType.fs" />
     <Compile Include="Selector.fs" />
     <Compile Include="Transactor.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Fsion.API\Fsion.API.fsproj" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

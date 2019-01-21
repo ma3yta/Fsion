@@ -3,8 +3,8 @@ namespace Fsion
 open System.Reflection
 open System.Runtime.CompilerServices
 
-[<assembly: AssemblyTitleAttribute("Fsion")>]
-[<assembly: AssemblyProductAttribute("Fsion")>]
+[<assembly: AssemblyTitleAttribute("Fsion.API")>]
+[<assembly: AssemblyProductAttribute("Fsion.API")>]
 [<assembly: AssemblyCopyrightAttribute("Copyright 2018")>]
 [<assembly: AssemblyDescriptionAttribute("EAVT (Entity Attribute Value Time) database for F#")>]
 [<assembly: AssemblyVersionAttribute("0.0.8")>]
