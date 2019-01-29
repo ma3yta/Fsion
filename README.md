@@ -47,10 +47,11 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - Simple Excel API - DONE
 - Attribute metadata and functionality - DONE but more to do
 - Transactor - DONE but more to do
-- Indexes - January
-- Large sample database - January
+- Refactor to decouple Transactor and Selector - January
+- Large sample database - February
 - Other internal API implementations
 - Performance and resilience tests
+- Indexes
 - Query language
 - Other external APIs
 - Views
