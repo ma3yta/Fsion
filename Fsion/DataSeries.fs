@@ -489,60 +489,46 @@ module internal StreamSerialize =
             m.Set(entityAttributeGet s, bytesGet s |> DataSeries)
         m
 
-    let transactionDataSet (s:Stream) (transactionData:TransactionData) =
+    let transactionDataSet (s:Stream) (txData:TxData) =
 
-        let text = transactionData.Text
+        let text = txData.Text
         uint32Set s (uint32 text.Length)
-        Array.iter (textSet s) text
+        List.iter (textSet s) text
 
-        let data = transactionData.Data
+        let data = txData.Data
         uint32Set s (uint32 data.Length)
-        Array.iter (bytesSet s) data
+        List.iter (fun (Data d) -> bytesSet s d) data
 
-        let creates = transactionData.Creates
-        uint32Set s (uint32 creates.Length)
-        Array.iter (entitySet s) creates
-        
-        let entityDatum = transactionData.EntityDatum
-        uint32Set s (uint32 entityDatum.Length)
-        List.fold (fun (pet,peid,pa,pd,pv) (Entity(EntityType et,eid),AttributeId a,Date d,v) ->
-            uint32Set s (et-pet)
+        let datum = txData.Datum
+        uint32Set s (uint32 datum.Length)
+        List.fold (fun (pety,peid,patt,pdat,pven)
+                       (Entity(EntityType ety,eid),AttributeId att,Date dat,ven) ->
+            uint32Set s (ety-pety)
             uint32Set s (eid-peid)
-            uint32Set s (a-pa)
-            uint32Set s (d-pd)
-            let v = zigzag64 v
-            uint64Set s (v-pv)
-            (et,eid,a,d,v)
-        ) (0u,0u,0u,0u,0uL) entityDatum |> ignore
-
-        let transactionDatum = transactionData.TransactionDatum
-        uint32Set s (uint32 transactionDatum.Length)
-        List.iter (fun (AttributeId a,d) ->
-            uint32Set s a
-            uint64Set s (zigzag64 d)
-        ) transactionDatum
+            uint32Set s (att-patt)
+            uint32Set s (dat-pdat)
+            let v = zigzag64 ven
+            uint64Set s (v-pven)
+            (ety,eid,att,dat,v)
+        ) (0u,0u,0u,0u,0uL) datum |> ignore
 
     let transactionDataGet (s:Stream) =
         {
             Text =
                 let l = uint32Get s |> int
-                Array.init l (fun _ -> textGet s)
+                List.init l (fun _ -> textGet s)
             Data =
                 let l = uint32Get s |> int
-                Array.init l (fun _ -> bytesGet s)
-            Creates =
-                let l = uint32Get s |> int
-                Array.init l (fun _ -> entityGet s)
-            EntityDatum =
+                List.init l (fun _ -> bytesGet s |> Data)
+            Datum =
                 let l = uint32Get s |> int
                 Seq.init l (fun _ -> uint32Get s, uint32Get s, uint32Get s, uint32Get s, uint64Get s)
-                |> Seq.scan (fun (pet,peid,pa,pd,pv) (et,eid,a,d,v) -> pet+et,peid+eid,pa+a,pd+d,pv+v) (0u,0u,0u,0u,0uL)
+                |> Seq.scan (fun (pety,peid,patt,pdat,pven) (ety,eid,att,dat,ven) ->
+                    pety+ety,peid+eid,patt+att,pdat+dat,pven+ven
+                ) (0u,0u,0u,0u,0uL)
                 |> Seq.tail
-                |> Seq.map (fun (et,eid,a,d,v) -> Entity(EntityType et,eid), AttributeId a, Date d, unzigzag64 v)
-                |> List.ofSeq
-            TransactionDatum =
-                let l = uint32Get s |> int
-                List.init l (fun _ ->
-                    attributeGet s, (uint64Get s |> unzigzag64)
+                |> Seq.map (fun (ety,eid,att,dat,ven) ->
+                    Entity(EntityType ety,eid), AttributeId att, Date dat, unzigzag64 ven
                 )
+                |> List.ofSeq
         }

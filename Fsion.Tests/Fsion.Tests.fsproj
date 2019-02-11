@@ -13,6 +13,7 @@
     <Compile Include="BytePoolTests.fs" />
     <Compile Include="TypesTests.fs" />
     <Compile Include="DataSeriesTests.fs" />
+    <Compile Include="TransactorTests.fs" />
     <Compile Include="DatabaseTests.fs" />
     <Compile Include="AttributeTests.fs" />
     <Compile Include="Main.fs" />

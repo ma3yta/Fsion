@@ -20,6 +20,10 @@ let valueTypeTestList =
             testRoundtrip FsionValue.encodeInt FsionValue.decodeInt
         )
 
+        testProp "uint roundtrip" (
+            testRoundtrip FsionValue.encodeUInt FsionValue.decodeUInt
+        )
+
         testProp "int64 roundtrip" (
             testRoundtrip FsionValue.encodeInt64 FsionValue.decodeInt64
         )

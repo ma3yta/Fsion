@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>Fsion</AssemblyName>
     <PackageId>Fsion</PackageId>
@@ -19,10 +19,10 @@
     <Compile Include="Extensions.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="DataSeries.fs" />
-    <Compile Include="Database.fs" />
     <Compile Include="ValueType.fs" />
-    <Compile Include="Selector.fs" />
     <Compile Include="Transactor.fs" />
+    <Compile Include="Database.fs" />
+    <Compile Include="Selector.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Fsion.API\Fsion.API.fsproj" />

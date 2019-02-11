@@ -72,13 +72,23 @@ type Tx = Tx of uint32
     
 module Tx =
     let maxValue = Tx UInt32.MaxValue
+    let next (Tx i) = Tx (i+1u)
 
 [<Struct>]
 type EntityType =
     | EntityType of uint32
-    static member entityType = EntityType 0u
-    static member attribute = EntityType 1u
-    static member transaction = EntityType 2u
+
+module EntityType =
+    module Int =
+        [<Literal>]
+        let transaction = 0u
+        [<Literal>]
+        let entityType = 1u
+        [<Literal>]
+        let attribute = 1u
+    let transaction = EntityType Int.transaction
+    let entityType = EntityType Int.entityType
+    let attribute = EntityType Int.attribute
 
 [<Struct>]
 type Entity =
@@ -87,10 +97,25 @@ type Entity =
 [<Struct>]
 type AttributeId =
     | AttributeId of uint32
-    static member uri = AttributeId 0u
-    static member time = AttributeId 1u
-    static member attribute_type = AttributeId 2u
-    static member attribute_isset = AttributeId 3u
+
+module AttributeId =
+    module Int =
+        [<Literal>]
+        let uri = 0u
+        [<Literal>]
+        let time = 1u
+        [<Literal>]
+        let attribute_type = 2u
+        [<Literal>]
+        let attribute_isset = 3u
+        [<Literal>]
+        let transaction_based_on = 4u
+    let uri = AttributeId Int.uri
+    let time = AttributeId Int.time
+    let attribute_type = AttributeId Int.attribute_type
+    let attribute_isset = AttributeId Int.attribute_isset
+    let transaction_based_on = AttributeId Int.transaction_based_on
+
 
 [<Struct;CustomEquality;CustomComparison>]
 type EntityAttribute =
@@ -124,6 +149,11 @@ type TextId =
     | TextId of uint32
 
 [<Struct>]
+type Data =
+    internal
+    | Data of byte[]
+
+[<Struct>]
 type DataId =
     internal
     | DataId of uint32
@@ -135,10 +165,8 @@ type Uri =
 
 type Datum = Entity * AttributeId * Date * int64
 
-type TransactionData = {
-    TransactionDatum: (AttributeId * int64) list
-    EntityDatum: Datum list
-    Creates: Entity[]
-    Text: Text[]
-    Data: byte[][]
+type TxData = {
+    Text: Text list // set? Needs client to make unique for effiecient serialization
+    Data: Data list
+    Datum: Datum list // list1? First item needs to be a transaction datum
 }

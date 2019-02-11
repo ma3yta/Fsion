@@ -4,6 +4,7 @@ type FsionType =
     | TypeType
     | TypeBool
     | TypeInt
+    | TypeUInt
     | TypeInt64
     | TypeUri
     | TypeDate
@@ -15,29 +16,32 @@ type FsionType =
         | TypeType -> 1L
         | TypeBool -> 2L
         | TypeInt -> 3L
-        | TypeInt64 -> 4L
-        | TypeUri -> 5L
-        | TypeDate -> 6L
-        | TypeTime -> 7L
-        | TypeTextId -> 8L
-        | TypeDataId -> 9L
+        | TypeUInt -> 4L
+        | TypeInt64 -> 5L
+        | TypeUri -> 6L
+        | TypeDate -> 7L
+        | TypeTime -> 8L
+        | TypeTextId -> 9L
+        | TypeDataId -> 10L
     static member Decode i =
         match i with
         | 1L -> TypeType
         | 2L -> TypeBool
         | 3L -> TypeInt
-        | 4L -> TypeInt64
-        | 5L -> TypeUri
-        | 6L -> TypeDate
-        | 7L -> TypeTime
-        | 8L -> TypeTextId
-        | 9L -> TypeDataId
+        | 4L -> TypeUInt
+        | 5L -> TypeInt64
+        | 6L -> TypeUri
+        | 7L -> TypeDate
+        | 8L -> TypeTime
+        | 9L -> TypeTextId
+        | 10L -> TypeDataId
         | _ -> TypeInt
     member i.Name =
         match i with
         | TypeType -> Text "type"
         | TypeBool -> Text "bool"
         | TypeInt -> Text "int"
+        | TypeUInt -> Text "uint"
         | TypeInt64 -> Text "int64"
         | TypeUri -> Text "uri"
         | TypeDate -> Text "date"
@@ -49,6 +53,7 @@ type FsionType =
         | IsText "type" -> TypeType |> Ok
         | IsText "bool" -> TypeBool |> Ok
         | IsText "int" -> TypeInt |> Ok
+        | IsText "uint" -> TypeUInt |> Ok
         | IsText "int64" -> TypeInt64 |> Ok
         | IsText "uri" -> TypeUri |> Ok
         | IsText "date" -> TypeDate |> Ok
@@ -61,6 +66,7 @@ type FsionValue =
     | FsionType of FsionType
     | FsionBool of bool
     | FsionInt of int
+    | FsionUInt of uint32
     | FsionInt64 of int64
     | FsionUri of Fsion.Uri
     | FsionDate of Date
@@ -102,6 +108,16 @@ module FsionValue =
         | 0L -> None
         | i when i>0L -> int32 i |> Some
         | i -> int32 i + 1 |> Some
+
+    let encodeUInt i =
+        match i with
+        | None -> 0L
+        | Some i -> unzigzag(i+1u) |> int64
+
+    let decodeUInt i =
+        match i with
+        | 0L -> None
+        | i -> zigzag(int32 i) - 1u |> Some
 
     let encodeInt64 i =
         match i with

@@ -107,47 +107,47 @@ let dataCacheTests =
     |> dataCacheTestList
     |> testList "dataCache memory"
 
-let databaseTestList (db:Transactor.Context) = [
+//let databaseTestList (db:Transactor.Context) = [
     
-    testAsync "nothing" {
-        let txData = {
-            Text = [|Text "hi"|]
-            Data = [||]
-            Creates = [||]
-            EntityDatum = []
-            TransactionDatum = []
-        }
-        Transactor.commit db txData |> ignore
-    }
+//    testAsync "nothing" {
+//        let txData = {
+//            Text = [|Text "hi"|]
+//            Data = [||]
+//            Creates = [||]
+//            EntityDatum = []
+//            TransactionDatum = []
+//        }
+//        Transactor.commit db txData |> ignore
+//    }
 
-    testAsync "create" {
-        let txData = {
-            Text = [|Text "my_uri"|]
-            Data = [||]
-            Creates = [||]
-            EntityDatum = [Entity(EntityType.attribute,1u), AttributeId.uri, Date 10u, 0L]
-            TransactionDatum = []
-        }
-        Transactor.commit db txData |> ignore
-    }
+//    testAsync "create" {
+//        let txData = {
+//            Text = [|Text "my_uri"|]
+//            Data = [||]
+//            Creates = [||]
+//            EntityDatum = [Entity(EntityType.attribute,1u), AttributeId.uri, Date 10u, 0L]
+//            TransactionDatum = []
+//        }
+//        Transactor.commit db txData |> ignore
+//    }
 
-    testAsync "update" {
-        let txData = {
-            Text = [|Text "my_uri2"|]
-            Data = [||]
-            Creates = [||]
-            EntityDatum = [Selector.toEntity AttributeId.uri, AttributeId.uri, Date 10u, 0L]
-            TransactionDatum = []
-        }
-        Transactor.commit db txData |> ignore
-    }
-]
+//    testAsync "update" {
+//        let txData = {
+//            Text = [|Text "my_uri2"|]
+//            Data = [||]
+//            Creates = [||]
+//            EntityDatum = [Selector.toEntity AttributeId.uri, AttributeId.uri, Date 10u, 0L]
+//            TransactionDatum = []
+//        }
+//        Transactor.commit db txData |> ignore
+//    }
+//]
 
-let databaseTests =
-    let tempDir = tempDir()
-    let database = Database.createMemory tempDir.Path
-    let database = Transactor.localContext database
-    afterTesting tempDir.Dispose
-    database
-    |> databaseTestList
-    |> testList "dataSeriesBase memory"
+//let databaseTests =
+//    let tempDir = tempDir()
+//    let database = Database.createMemory tempDir.Path
+//    let database = Transactor.localContext database
+//    afterTesting tempDir.Dispose
+//    database
+//    |> databaseTestList
+//    |> testList "dataSeriesBase memory"
