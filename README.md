@@ -47,7 +47,7 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - Simple Excel API - DONE
 - Attribute metadata and functionality - DONE but more to do
 - Transactor - DONE but more to do
-- Refactor to decouple Transactor and Selector - January
+- Refactor to decouple Transactor and Selector - February
 - Large sample database - February
 - Other internal API implementations
 - Performance and resilience tests
