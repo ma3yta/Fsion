@@ -13,6 +13,7 @@ let tests =
         SerializeTests.arraySerializeTests
         SerializeTests.dataSeriesTests
         SerializeTests.streamSerializeTests
+        ValueTypeTests.valueTypeTestList
         TransactorTests.transactorTests
         DatabaseTests.dataCacheTests
         AttributeTests.attributeTestList
