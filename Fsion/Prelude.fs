@@ -80,3 +80,42 @@ module internal File =
             load (Array.zeroCreate l) 0 l |> Ok
         with e -> Error e
 
+[<Struct;Diagnostics.CodeAnalysis.SuppressMessage("NameConventions","TypeNamesMustBePascalCase")>]
+type 'a list1 =
+    private
+    | List1 of 'a list
+    member x.Length =
+        let (List1 l) = x
+        l.Length
+    member x.Head =
+        let (List1 l) = x
+        List.head l
+    member x.Tail =
+        let (List1 l) = x
+        List.tail l
+
+module List1 =
+    let cons x (List1 xs) = List1 (x::xs)
+    let length (List1 l) = List.length l
+    let head (List1 l) = List.head l
+    let tail (List1 l) = List.tail l
+    let init x xs = List1(x::xs)
+    let tryOfList l =
+        match l with
+        | [] -> None
+        | x -> List1 x |> Some
+    let toList (List1 l) = l
+    let toArray (List1 l) = List.toArray l
+    let tryOfArray a =
+        if Array.isEmpty a then None
+        else List.ofArray a |> List1 |> Some
+    let singleton s = List1 [s]
+    let map mapper (List1 l) = List.map mapper l |> List1
+    let iter action (List1 l) = List.iter action l
+    let item index (List1 l) = List.item index l 
+    let sort (List1 l) = List.sort l |> List1
+    let append (List1 l1) (List1 l2) = List1(l1@l2)
+    let choose chooser (List1 l) = List.choose chooser l |> tryOfList
+    let fold folder state (List1 l) = List.fold folder state l
+    let ofSeq source = List.ofSeq source |> tryOfList
+    let forall predicate (List1 l) = List.forall predicate l

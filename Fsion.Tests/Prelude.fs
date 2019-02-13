@@ -20,7 +20,11 @@ module Gen =
             (fun (NonWhiteSpaceString s) -> Text.ofString s |> Option.get)
             (Text.toString >> NonWhiteSpaceString)
             Arb.from
-
+    let list1Arb<'a> =
+        Arb.convert
+            (fun (x,xs:'a list) -> List1.init x xs)
+            (fun l1 -> l1.Head,l1.Tail)
+            Arb.from
     let addToConfig config = {
         config with
             arbitrary = typeof<Float01>.DeclaringType::config.arbitrary

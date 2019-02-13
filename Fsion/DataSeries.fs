@@ -501,7 +501,7 @@ module internal StreamSerialize =
 
         let datum = txData.Datum
         uint32Set s (uint32 datum.Length)
-        List.fold (fun (pety,peid,patt,pdat,pven)
+        List1.fold (fun (pety,peid,patt,pdat,pven)
                        (Entity(EntityType ety,eid),AttributeId att,Date dat,ven) ->
             uint32Set s (ety-pety)
             uint32Set s (eid-peid)
@@ -530,5 +530,6 @@ module internal StreamSerialize =
                 |> Seq.map (fun (ety,eid,att,dat,ven) ->
                     Entity(EntityType ety,eid), AttributeId att, Date dat, unzigzag64 ven
                 )
-                |> List.ofSeq
+                |> List1.ofSeq
+                |> Option.get
         }

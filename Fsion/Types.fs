@@ -103,14 +103,17 @@ module AttributeId =
         [<Literal>]
         let uri = 0u
         [<Literal>]
-        let time = 1u
+        let name = 1u
         [<Literal>]
-        let attribute_type = 2u
+        let time = 2u
         [<Literal>]
-        let attribute_isset = 3u
+        let attribute_type = 3u
         [<Literal>]
-        let transaction_based_on = 4u
+        let attribute_isset = 4u
+        [<Literal>]
+        let transaction_based_on = 5u
     let uri = AttributeId Int.uri
+    let name = AttributeId Int.name
     let time = AttributeId Int.time
     let attribute_type = AttributeId Int.attribute_type
     let attribute_isset = AttributeId Int.attribute_isset
@@ -168,5 +171,5 @@ type Datum = Entity * AttributeId * Date * int64
 type TxData = {
     Text: Text list // set? Needs client to make unique for effiecient serialization
     Data: Data list
-    Datum: Datum list // list1? First item needs to be a transaction datum
+    Datum: Datum list1
 }

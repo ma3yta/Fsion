@@ -1,37 +1,13 @@
 ﻿namespace Fsion
 
 open System
-open System.IO
-open System.Threading.Tasks
-open System.Collections.Generic
 open Fsion
-
-//module TransationStore =
-//    let createNull() =
-//        { new TransactionStore with
-//            member __.Set tx bytes =
-//                Ok ()
-//            member __.Get tx =
-//                invalidOp "null log"
-//        }
-//    let createLocal transactionPath =
-//        { new TransactionStore with
-//            member __.Set (Tx txId) transactionData =
-//                try
-//                    use fs =
-//                        Path.Combine [|transactionPath;txId.ToString()+".fsl"|]
-//                        |> File.Create
-//                    StreamSerialize.transactionDataSet fs transactionData
-//                    Ok ()
-//                with e -> Error e
-//            member __.Get tx =
-//                invalidOp "not implemented"
-//        }
 
 module Transactor =
 
     [<Struct>]
     type Counts =
+        internal
         | Counts of uint32 array
 
     module internal Counts =
@@ -49,17 +25,21 @@ module Transactor =
         let setText (Edit a) v = (!a).[0] <- v
         let setData (Edit a) v = (!a).[1] <- v
         let toCounts (Edit a) = Counts !a
+        let empty = Counts [|0u;0u|]
 
     [<Struct;NoComparison>]
     type internal TempSet =
-        | TempSet of SetSlim<AttributeId> * add: AttributeId list * remove: AttributeId list
+        | TempSet of SetSlim<AttributeId> * (AttributeId list * AttributeId list) option
 
     module internal TempSet =
-        let contains a (TempSet(s,al,rl)) =
-            List.contains a rl |> not
-            &&
-            (let ov = s.Get a in ov.IsSome
-             || List.contains a al)
+        let contains a (TempSet(s,o)) =
+            match o with
+            | None -> let ov = s.Get a in ov.IsSome
+            | Some(al,rl) ->
+                List.contains a rl |> not
+                &&
+                (let ov = s.Get a in ov.IsSome
+                 || List.contains a al)
 
     type Store =
         abstract member Set : TxData -> Result<unit,Text>
@@ -73,20 +53,22 @@ module Transactor =
     let inline internal noNewCounts (counts:Counts) (data:TxData) =
         List.isEmpty data.Text
         && List.isEmpty data.Data
-        && List.forall (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
+        && List1.forall (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
             Counts.get ety counts > eid || etyId = EntityType.Int.transaction
         ) data.Datum
 
-    let inline internal updateTextAndDataAttributes (text:SetSlim<AttributeId>) (data:SetSlim<AttributeId>) (datum:Datum list) =
+    let internal updateTextAndDataAttributes (text:SetSlim<AttributeId>) (data:SetSlim<AttributeId>) (datum:Datum list1) =
         let mutable textAdd,textRemove,dataAdd,dataRemove = [],[],[],[]
-        List.iter (function
+        List1.iter (function
             | (Entity(EntityType EntityType.Int.attribute,eid)),AttributeId AttributeId.Int.attribute_type,_,i ->
                 let aid = AttributeId eid
                 if i=encodedTypeTextId then textAdd <- aid::textAdd else textRemove <- aid::textRemove
                 if i=encodedTypeDataId then dataAdd <- aid::dataAdd else dataRemove <- aid::dataRemove
             | _ -> ()
         ) datum
-        TempSet(text,textAdd,textRemove), TempSet(data,dataAdd,dataRemove)
+        let textEdit = if textAdd = [] && textRemove = [] then None else Some(textAdd,textRemove)
+        let dataEdit = if dataAdd = [] && dataRemove = [] then None else Some(dataAdd,dataRemove)
+        TempSet(text,textEdit), TempSet(data,dataEdit)
 
     let internal updateCounts (counts:Counts) (data:TxData) : Counts =
         let edit = Counts.copy counts
@@ -98,43 +80,43 @@ module Transactor =
             Counts.getData counts
             |> (+) (uint32(List.length data.Data))
             |> Counts.setData edit
-        List.iter (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
+        List1.iter (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
             if Counts.get ety counts <= eid && etyId <> EntityType.Int.transaction then Counts.set ety edit (eid+1u)
         ) data.Datum
         Counts.toCounts edit
 
-    let internal concurrencyUpdate (recentData:TxData list) (recentCounts:Counts list)
+    let internal concurrencyUpdate (recentData:TxData list1) (recentCounts:Counts list1)
                                    (textAttributes:TempSet) (dataAttributes:TempSet) (data:TxData) =
         let Entity(_,lastTxId),_,_,_ = recentData.Head.Datum.Head
         let nextTxId = lastTxId + 1u
         let Entity(_,txId),_,_,_ = data.Datum.Head
         if txId = nextTxId then
-            if noNewCounts (List.head recentCounts) data then Some (data, List.head recentCounts)
-            else Some (data, updateCounts (List.head recentCounts) data)
-        elif int(nextTxId-txId) >= List.length recentCounts then None
-        elif noNewCounts (List.item (int(nextTxId-txId)) recentCounts) data then
+            if noNewCounts recentCounts.Head data then Some (data, recentCounts.Head)
+            else Some (data, updateCounts recentCounts.Head data)
+        elif int(nextTxId-txId) >= recentCounts.Length then None
+        elif noNewCounts (List1.item (int(nextTxId-txId)) recentCounts) data then
             let data = // Just update txIds
                 { data with
                     Datum =
                         let tranET = EntityType.transaction
                         let _,_,date,_ = data.Datum.Head
-                        (Entity(tranET,nextTxId),AttributeId.transaction_based_on,date,Some(txId-1u)
-                            |> FsionValue.encodeUInt)
-                        :: List.map (fun (Entity(ety,eid),att,dat,ven) ->
+                        List1.toList data.Datum
+                        |> List.map (fun (Entity(ety,eid),att,dat,ven) ->
                             if ety = tranET then Entity(ety,nextTxId),att,dat,ven
                             else Entity(ety,eid),att,dat,ven
-                        ) data.Datum
+                        )
+                        |> List1.init (Entity(tranET,nextTxId),AttributeId.transaction_based_on,date,Some(txId-1u) |> FsionValue.encodeUInt)
                 }
-            Some (data, List.head recentCounts)
+            Some (data, recentCounts.Head)
         else
-            let currentCounts = List.head recentCounts
-            let originalCounts = List.item (int(nextTxId-txId)) recentCounts
+            let currentCounts = recentCounts.Head
+            let originalCounts = List1.item (int(nextTxId-txId)) recentCounts
             let data = // Update txIds, seti, setText and setData
                 let pastTexts =
                     if List.isEmpty data.Text then []
                     else
                         List.init (int(nextTxId-txId)) (fun i ->
-                            (List.item i recentData).Text
+                            (List1.item i recentData).Text
                         )
                         |> List.rev
                         |> List.concat
@@ -144,9 +126,8 @@ module Transactor =
                     Datum =
                         let tranET = EntityType.transaction
                         let _,_,date,_ = data.Datum.Head
-                        (Entity(tranET,nextTxId),AttributeId.transaction_based_on,date,Some(txId-1u)
-                            |> FsionValue.encodeUInt)
-                        :: List.map (fun (Entity(ety,eid),att,dat,ven) ->
+                        List1.toList data.Datum
+                        |> List.map (fun (Entity(ety,eid),att,dat,ven) ->
                             let eid =
                                 if ety=tranET then nextTxId
                                 elif Counts.get ety originalCounts > eid then eid
@@ -175,7 +156,8 @@ module Transactor =
                                     |> FsionValue.encodeUInt
                                 else ven
                             Entity(ety,eid),att,dat,ven
-                        ) data.Datum
+                        )
+                        |> List1.init (Entity(tranET,nextTxId),AttributeId.transaction_based_on,date,Some(txId-1u) |> FsionValue.encodeUInt)
                 }
             Some (data, updateCounts currentCounts data)
 
@@ -188,11 +170,37 @@ module Transactor =
         | Some (data, counts) ->
             store.Set data
             |> Result.map (fun () ->
-                let (TempSet(_,ta,tr)) = texts
-                let (TempSet(_,da,dr)) = datas
-                data, counts, (ta,tr), (da,dr)
+                let (TempSet(_,otext)) = texts
+                let (TempSet(_,odata)) = datas
+                data, counts, otext, odata
             )
 
 // Stores
 // Just imp the memory ones and local disk
 // Offer a conversion from a stream store
+
+//open System.IO
+//open System.Threading.Tasks
+//open System.Collections.Generic
+
+//module TransationStore =
+//    let createNull() =
+//        { new TransactionStore with
+//            member __.Set tx bytes =
+//                Ok ()
+//            member __.Get tx =
+//                invalidOp "null log"
+//        }
+//    let createLocal transactionPath =
+//        { new TransactionStore with
+//            member __.Set (Tx txId) transactionData =
+//                try
+//                    use fs =
+//                        Path.Combine [|transactionPath;txId.ToString()+".fsl"|]
+//                        |> File.Create
+//                    StreamSerialize.transactionDataSet fs transactionData
+//                    Ok ()
+//                with e -> Error e
+//            member __.Get tx =
+//                invalidOp "not implemented"
+//        }
