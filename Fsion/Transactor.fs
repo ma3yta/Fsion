@@ -42,20 +42,20 @@ module Transactor =
                  || List.contains a al)
 
     type Store =
-        abstract member Set : TxData -> Result<unit,Text>
-        abstract member Get : Tx * uint32 -> Result<TxData array,Text>
+        abstract member Set : Transaction -> Result<unit,Text>
+        abstract member Get : Tx * uint32 -> Result<Transaction array,Text>
         abstract member SetSummary : Result<Counts,Text>
         abstract member GetSummary : unit -> Result<Counts,Text>
 
-    let private encodedTypeTextId = FsionValue.encodeType (Some FsionType.TypeTextId)
-    let private encodedTypeDataId = FsionValue.encodeType (Some FsionType.TypeDataId)
+    let private encodedTypeTextId = FsionValue.encodeType (Some TypeTextId)
+    let private encodedTypeDataId = FsionValue.encodeType (Some TypeDataId)
 
-    let inline internal noNewCounts (counts:Counts) (data:TxData) =
-        List.isEmpty data.Text
-        && List.isEmpty data.Data
+    let inline internal noNewCounts (counts:Counts) (txn:Transaction) =
+        List.isEmpty txn.Text
+        && List.isEmpty txn.Data
         && List1.forall (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
             Counts.get ety counts > eid || etyId = EntityType.Int.transaction
-        ) data.Datum
+        ) txn.Datum
 
     let internal updateTextAndDataAttributes (text:SetSlim<AttributeId>) (data:SetSlim<AttributeId>) (datum:Datum list1) =
         let mutable textAdd,textRemove,dataAdd,dataRemove = [],[],[],[]
@@ -70,24 +70,24 @@ module Transactor =
         let dataEdit = if dataAdd = [] && dataRemove = [] then None else Some(dataAdd,dataRemove)
         TempSet(text,textEdit), TempSet(data,dataEdit)
 
-    let internal updateCounts (counts:Counts) (data:TxData) : Counts =
+    let internal updateCounts (counts:Counts) (txn:Transaction) : Counts =
         let edit = Counts.copy counts
-        if List.isEmpty data.Text |> not then
+        if List.isEmpty txn.Text |> not then
             Counts.getText counts
-            |> (+) (uint32(List.length data.Text))
+            |> (+) (uint32(List.length txn.Text))
             |> Counts.setText edit
-        if List.isEmpty data.Data |> not then
+        if List.isEmpty txn.Data |> not then
             Counts.getData counts
-            |> (+) (uint32(List.length data.Data))
+            |> (+) (uint32(List.length txn.Data))
             |> Counts.setData edit
         List1.iter (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
             if Counts.get ety counts <= eid && etyId <> EntityType.Int.transaction then Counts.set ety edit (eid+1u)
-        ) data.Datum
+        ) txn.Datum
         Counts.toCounts edit
 
-    let internal concurrencyUpdate (recentData:TxData list1) (recentCounts:Counts list1)
-                                   (textAttributes:TempSet) (dataAttributes:TempSet) (data:TxData) =
-        let Entity(_,lastTxId),_,_,_ = recentData.Head.Datum.Head
+    let internal updateTransaction (recentTxn:Transaction list1) (recentCounts:Counts list1)
+                                   (textAttributes:TempSet) (dataAttributes:TempSet) (data:Transaction) =
+        let Entity(_,lastTxId),_,_,_ = recentTxn.Head.Datum.Head
         let nextTxId = lastTxId + 1u
         let Entity(_,txId),_,_,_ = data.Datum.Head
         if txId = nextTxId then
@@ -116,7 +116,7 @@ module Transactor =
                     if List.isEmpty data.Text then []
                     else
                         List.init (int(nextTxId-txId)) (fun i ->
-                            (List1.item i recentData).Text
+                            (List1.item i recentTxn).Text
                         )
                         |> List.rev
                         |> List.concat
@@ -161,11 +161,11 @@ module Transactor =
                 }
             Some (data, updateCounts currentCounts data)
 
-    let commit (store:Store) recentData recentCounts textAttributes dataAttributes (nextTxId:uint32) (txData:TxData) =
+    let commit (store:Store) recentData recentCounts textAttributes dataAttributes (txn:Transaction) =
 
-        let texts, datas = updateTextAndDataAttributes textAttributes dataAttributes txData.Datum
+        let texts, datas = updateTextAndDataAttributes textAttributes dataAttributes txn.Datum
 
-        match concurrencyUpdate recentData recentCounts texts datas txData with
+        match updateTransaction recentData recentCounts texts datas txn with
         | None -> Text "Transaction age" |> Error
         | Some (data, counts) ->
             store.Set data

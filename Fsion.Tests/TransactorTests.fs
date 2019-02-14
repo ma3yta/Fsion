@@ -7,7 +7,7 @@ open Transactor
 let transactorTests =
 
     let emptyTempSet = TempSet(SetSlim(),None)
-    let emptyTx i v = {
+    let emptyTxn i v = {
         Text = []
         Data = []
         Datum = List1.singleton (Entity(EntityType.transaction,i),AttributeId.time,Date.minValue,v)
@@ -30,22 +30,22 @@ let transactorTests =
         }
         
         testAsync "current tx" {
-            let recentData = emptyTx 123u 0L |> List1.singleton
+            let recentData = emptyTxn 123u 0L |> List1.singleton
             let recentCounts = List1.singleton Counts.empty
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = emptyTx 124u 0L
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
-            Expect.equal data (Some(txData,Counts.empty)) ""
+            let txn = emptyTxn 124u 0L
+            let data = updateTransaction recentData recentCounts texts datas txn
+            Expect.equal data (Some(txn,Counts.empty)) ""
         }
 
         testAsync "last tx" {
-            let recentData = emptyTx 123u 0L |> List1.singleton
+            let recentData = emptyTxn 123u 0L |> List1.singleton
             let recentCounts = List1.init Counts.empty [Counts.empty]
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = emptyTx 123u 0L
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let txn = emptyTxn 123u 0L
+            let data = updateTransaction recentData recentCounts texts datas txn
             let expectedData = {
-                txData with
+                txn with
                     Datum = [
                         Entity(EntityType.transaction,124u),AttributeId.transaction_based_on,Date.minValue,FsionValue.encodeUInt(Some 122u)
                         Entity(EntityType.transaction,124u),AttributeId.time,Date.minValue,0L
@@ -55,55 +55,53 @@ let transactorTests =
         }
 
         testAsync "too old" {
-            let recentData = emptyTx 123u 0L |> List1.singleton
+            let recentData = emptyTxn 123u 0L |> List1.singleton
             let recentCounts = List1.singleton Counts.empty
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = emptyTx 122u 0L
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let txn = emptyTxn 122u 0L
+            let data = updateTransaction recentData recentCounts texts datas txn
             Expect.equal data None ""
         }
 
         testAsync "text" {
-            let recentData = emptyTx 123u 0L |> List1.singleton
+            let recentData = emptyTxn 123u 0L |> List1.singleton
             let recentCounts = List1.singleton Counts.empty
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = emptyTx 124u 0L
-            let txData = {txData with Text = [Text "hi"]}
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
-            Expect.equal data (Some(txData,Counts [|1u;0u|])) ""
+            let txn = {emptyTxn 124u 0L with Text = [Text "hi"]}
+            let data = updateTransaction recentData recentCounts texts datas txn
+            Expect.equal data (Some(txn,Counts [|1u;0u|])) ""
         }
 
         testAsync "data" {
-            let recentData = emptyTx 123u 0L |> List1.singleton
+            let recentData = emptyTxn 123u 0L |> List1.singleton
             let recentCounts = List1.singleton Counts.empty
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = emptyTx 124u 0L
-            let txData = {txData with Data = [Data [|128uy|]]}
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
-            Expect.equal data (Some(txData,Counts [|0u;1u|])) ""
+            let txn = {emptyTxn 124u 0L with Data = [Data [|128uy|]]}
+            let data = updateTransaction recentData recentCounts texts datas txn
+            Expect.equal data (Some(txn,Counts [|0u;1u|])) ""
         }
 
         testAsync "new entity" {
-            let recentData = emptyTx 123u 0L |> List1.singleton
+            let recentData = emptyTxn 123u 0L |> List1.singleton
             let recentCounts = List1.singleton Counts.empty
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = emptyTx 124u 0L
-            let txData = {
-                txData with
+            let txn = emptyTxn 124u 0L
+            let txn = {
+                txn with
                     Datum = [
-                        List1.head txData.Datum
+                        List1.head txn.Datum
                         Entity(EntityType.attribute,0u),AttributeId.attribute_type,Date.minValue,0L
                     ] |> List1.tryOfList |> Option.get
             }
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
-            Expect.equal data (Some(txData,Counts [|0u;0u;1u|])) ""
+            let data = updateTransaction recentData recentCounts texts datas txn
+            Expect.equal data (Some(txn,Counts [|0u;0u;1u|])) ""
         }
 
         testAsync "move text" {
-            let recentData = List1.init (emptyTx 123u 0L) [emptyTx 122u 0L]
+            let recentData = List1.init (emptyTxn 123u 0L) [emptyTxn 122u 0L]
             let recentCounts = List1.init (Counts [|7u;0u;1u|]) [Counts [|6u;0u;1u|]]
             let texts,datas = TempSet(SetSlim(),Some([AttributeId.name],[])), emptyTempSet
-            let txData = {
+            let txn = {
                 Text = [Text "hi"]
                 Data = []
                 Datum = [
@@ -111,9 +109,9 @@ let transactorTests =
                     Entity(EntityType.attribute,0u),AttributeId.name,Date.minValue,FsionValue.encodeUInt(Some 6u)
                 ] |> List1.tryOfList |> Option.get
             }
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let data = updateTransaction recentData recentCounts texts datas txn
             let expectedData = {
-                txData with
+                txn with
                     Datum = [
                         Entity(EntityType.transaction,124u),AttributeId.transaction_based_on,Date.minValue,FsionValue.encodeUInt(Some 122u)
                         Entity(EntityType.transaction,124u),AttributeId.time,Date.minValue,0L
@@ -124,10 +122,10 @@ let transactorTests =
         }
 
         testAsync "move data" {
-            let recentData = List1.init (emptyTx 123u 0L) [emptyTx 122u 0L]
+            let recentData = List1.init (emptyTxn 123u 0L) [emptyTxn 122u 0L]
             let recentCounts = List1.init (Counts [|0u;7u;0u|]) [Counts [|0u;6u;0u|]]
             let texts,datas = emptyTempSet, TempSet(SetSlim(),Some([AttributeId.name],[]))
-            let txData = {
+            let txn = {
                 Text = []
                 Data = [Data [|167uy|]]
                 Datum = [
@@ -135,9 +133,9 @@ let transactorTests =
                     Entity(EntityType.attribute,0u),AttributeId.name,Date.minValue,FsionValue.encodeUInt(Some 6u)
                 ] |> List1.tryOfList |> Option.get
             }
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let data = updateTransaction recentData recentCounts texts datas txn
             let expectedData = {
-                txData with
+                txn with
                     Datum = [
                         Entity(EntityType.transaction,124u),AttributeId.transaction_based_on,Date.minValue,FsionValue.encodeUInt(Some 122u)
                         Entity(EntityType.transaction,124u),AttributeId.time,Date.minValue,0L
@@ -148,10 +146,10 @@ let transactorTests =
         }
 
         testAsync "move entity" {
-            let recentData = List1.init (emptyTx 123u 0L) [emptyTx 122u 0L]
+            let recentData = List1.init (emptyTxn 123u 0L) [emptyTxn 122u 0L]
             let recentCounts = List1.init (Counts [|0u;0u;1u|]) [Counts [|0u;0u;0u|]]
             let texts,datas = emptyTempSet, emptyTempSet
-            let txData = {
+            let txn = {
                 Text = []
                 Data = []
                 Datum = [
@@ -159,9 +157,9 @@ let transactorTests =
                     Entity(EntityType.attribute,0u),AttributeId.name,Date.minValue,0L
                 ] |> List1.tryOfList |> Option.get
             }
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let data = updateTransaction recentData recentCounts texts datas txn
             let expectedData = {
-                txData with
+                txn with
                     Datum = [
                         Entity(EntityType.transaction,124u),AttributeId.transaction_based_on,Date.minValue,FsionValue.encodeUInt(Some 122u)
                         Entity(EntityType.transaction,124u),AttributeId.time,Date.minValue,0L
@@ -172,11 +170,11 @@ let transactorTests =
         }
 
         testAsync "move text dup" {
-            let missedData = {emptyTx 123u 0L with Text = [Text "hi"]}
-            let recentData = List1.init missedData [emptyTx 122u 0L]
+            let missedData = {emptyTxn 123u 0L with Text = [Text "hi"]}
+            let recentData = List1.init missedData [emptyTxn 122u 0L]
             let recentCounts = List1.init (Counts [|7u;0u;1u|]) [Counts [|6u;0u;1u|]]
             let texts,datas = TempSet(SetSlim(),Some([AttributeId.name],[])), emptyTempSet
-            let txData = {
+            let txn = {
                 Text = [Text "hi"]
                 Data = []
                 Datum = [
@@ -184,7 +182,7 @@ let transactorTests =
                     Entity(EntityType.attribute,0u),AttributeId.name,Date.minValue,FsionValue.encodeUInt(Some 6u)
                 ] |> List1.tryOfList |> Option.get
             }
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let data = updateTransaction recentData recentCounts texts datas txn
             let expectedData = {
                 Text = []
                 Data = []
@@ -198,11 +196,11 @@ let transactorTests =
         }
 
         testAsync "all" {
-            let missedData = {emptyTx 123u 0L with Text = [Text "one";Text "two"]}
-            let recentData = List1.init missedData [emptyTx 122u 0L]
+            let missedData = {emptyTxn 123u 0L with Text = [Text "one";Text "two"]}
+            let recentData = List1.init missedData [emptyTxn 122u 0L]
             let recentCounts = List1.init (Counts [|8u;6u;2u|]) [Counts [|6u;5u;1u|]]
             let texts,datas = TempSet(SetSlim(),Some([AttributeId.name],[])), TempSet(SetSlim(),Some([AttributeId.attribute_isset],[]))
-            let txData = {
+            let txn = {
                 Text = [Text "three";Text "one";Text "four"]
                 Data = [Data [|45uy|]]
                 Datum = [
@@ -212,7 +210,7 @@ let transactorTests =
                     Entity(EntityType.attribute,1u),AttributeId.attribute_isset,Date.minValue,FsionValue.encodeUInt(Some 5u)
                 ] |> List1.tryOfList |> Option.get
             }
-            let data = concurrencyUpdate recentData recentCounts texts datas txData
+            let data = updateTransaction recentData recentCounts texts datas txn
             let expectedData = {
                 Text = [Text "three";Text "four"]
                 Data = [Data [|45uy|]]

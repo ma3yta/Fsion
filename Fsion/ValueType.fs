@@ -180,3 +180,17 @@ module FsionValue =
         match i with
         | 0L -> None
         | i -> DataId(zigzag(int32 i) - 1u) |> Some
+
+
+[<NoComparison;NoEquality>]
+type Attribute<'a> = {
+    Id: AttributeId
+    ValueType: FsionType
+    IsSet: bool
+}
+
+module Attribute =
+    let uri : Attribute<Uri> = { Id = AttributeId.uri; ValueType = TypeUri; IsSet = true }
+    let time : Attribute<Time> = { Id = AttributeId.time; ValueType = TypeTime; IsSet = false }
+    let attribute_type : Attribute<Time> = { Id = AttributeId.attribute_type; ValueType = TypeTime; IsSet = false }
+    let attribute_isset : Attribute<bool> = { Id = AttributeId.attribute_isset; ValueType = TypeBool; IsSet = false }

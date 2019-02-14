@@ -161,15 +161,60 @@ type DataId =
     internal
     | DataId of uint32
 
+type Datum = Entity * AttributeId * Date * int64
+
+type Transaction = {
+    Text: Text list // set? Needs client to make unique for effiecient serialization
+    Data: Data list
+    Datum: Datum list1
+}
+
 [<Struct>]
 type Uri =
     internal
     | Uri of uint32
 
-type Datum = Entity * AttributeId * Date * int64
+[<AutoOpen>]
+module Uri =
+    
+    let internal (|UriInt|UriNew|UriUri|UriInvalid|) (Text t,i,j) =
+        
+        let inline validateUri i j =
+            let inline isLetter c = c>='a' && c<='z'
+            let inline isNotLetter c = c<'a' || c>'z'
+            let inline isNotDigit c = c>'9' || c<'0'
+            let inline isUnderscore c = c='_'
+            let rec check i prevUnderscore =
+                if i = j then not prevUnderscore
+                else
+                    let c = t.[i]
+                    if   isNotLetter c
+                      && isNotDigit c 
+                      && (prevUnderscore || not(isUnderscore c)) then false
+                    else check (i+1) (isUnderscore c)
+            isLetter t.[i] && check (i+1) false
 
-type TxData = {
-    Text: Text list // set? Needs client to make unique for effiecient serialization
-    Data: Data list
-    Datum: Datum list1
-}
+        let inline validateInt i j =
+            let inline isNotDigit c = c>'9' || c<'0'
+            let rec check i =
+                if i = j then true
+                else
+                    if isNotDigit t.[i] then false
+                    else check (i+1)
+            isNotDigit t.[i] |> not && check (i+1)
+
+        let inline toInt i j =
+            let rec calc n i =
+                if i=j then n
+                else calc (10u*n+(uint32 t.[i] - 48u)) (i+1)
+            calc 0u i
+
+        if validateInt i j then
+            let n = toInt i j
+            UriInt n
+        elif t.[i]='n' && i+3<=j && t.[i+1]='e' && t.[i+2]='w'
+          && validateInt (i+3) j then
+            let n = toInt (i+3) j
+            UriNew n
+        elif validateUri i j then UriUri
+        else UriInvalid

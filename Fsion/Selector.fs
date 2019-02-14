@@ -1,72 +1,34 @@
 ﻿namespace Fsion
 
 open System
+open System.IO
+open System.Threading
 open Fsion
-
-[<NoComparison;NoEquality>]
-type Attribute<'a> = {
-    Id: AttributeId
-    ValueType: FsionType
-    IsSet: bool
-}
-
-module Attribute =
-    let uri : Attribute<Uri> = { Id = AttributeId.uri; ValueType = TypeUri; IsSet = true }
-    let time : Attribute<Time> = { Id = AttributeId.time; ValueType = TypeTime; IsSet = false }
-    let attribute_type : Attribute<Time> = { Id = AttributeId.attribute_type; ValueType = TypeTime; IsSet = false }
-    let attribute_isset : Attribute<bool> = { Id = AttributeId.attribute_isset; ValueType = TypeBool; IsSet = false }
 
 // TODO: sets, typed entities, decimal
 
 module Selector =
 
-    let internal (|UriInt|UriNew|UriUri|UriInvalid|) (Text t,i,j) =
-        
-        let inline validateUri i j =
-            let inline isLetter c = c>='a' && c<='z'
-            let inline isNotLetter c = c<'a' || c>'z'
-            let inline isNotDigit c = c>'9' || c<'0'
-            let inline isUnderscore c = c='_'
-            let rec check i prevUnderscore =
-                if i = j then not prevUnderscore
-                else
-                    let c = t.[i]
-                    if   isNotLetter c
-                      && isNotDigit c 
-                      && (prevUnderscore || not(isUnderscore c)) then false
-                    else check (i+1) (isUnderscore c)
-            isLetter t.[i] && check (i+1) false
-
-        let inline validateInt i j =
-            let inline isNotDigit c = c>'9' || c<'0'
-            let rec check i =
-                if i = j then true
-                else
-                    if isNotDigit t.[i] then false
-                    else check (i+1)
-            isNotDigit t.[i] |> not && check (i+1)
-
-        let inline toInt i j =
-            let rec calc n i =
-                if i=j then n
-                else calc (10u*n+(uint32 t.[i] - 48u)) (i+1)
-            calc 0u i
-
-        if validateInt i j then
-            let n = toInt i j
-            UriInt n
-        elif t.[i]='n' && i+3<=j && t.[i+1]='e' && t.[i+2]='w'
-          && validateInt (i+3) j then
-            let n = toInt (i+3) j
-            UriNew n
-        elif validateUri i j then UriUri
-        else UriInvalid
+    type Store =
+        inherit IDisposable
+        abstract member Get : EntityAttribute -> DataSeries voption
+        abstract member Set : EntityAttribute -> DataSeries -> unit
+        abstract member Ups : EntityAttribute -> (Date * Tx * int64) -> unit
+        abstract member TryGetTextId : Text -> TextId voption
+        abstract member GetTextId : Text -> TextId
+        abstract member GetText : TextId -> Text
+        abstract member GetDataId : byte[] -> DataId
+        abstract member GetData : DataId -> byte[]
+        abstract member SnapshotList : unit -> Result<int[],exn>
+        abstract member SnapshotSave : int -> Result<unit,exn>
+        abstract member SnapshotLoad : int -> Result<unit,exn>
+        abstract member SnapshotDelete : int -> Result<unit,exn>
 
     [<NoComparison>]
     type Context =
         private
-        | Local of Database
-        | Create of Database * ResizeArray<Entity> * ResizeArray<Text> * ResizeArray<byte[]>
+        | Local of Store
+        | Create of Store * ResizeArray<Entity> * ResizeArray<Text> * ResizeArray<byte[]>
 
     let localContext database =
         Local database
@@ -180,3 +142,84 @@ module Selector =
 
     let queryTable (cx:Context) (query:Text) : Result<AttributeId[] * int64[,],Text> = // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
         failwith "query"
+
+
+    let createMemory (snapshotPath:string) =
+        let mutable dataSeriesMap = MapSlim()
+        let mutable texts = SetSlim()
+        let mutable bytes = ListSlim()
+        { new Store with
+            member __.Get entityAttribute =
+                dataSeriesMap.GetOption entityAttribute
+            member __.Set entityAttribute dataSeries =
+                Monitor.Enter dataSeriesMap
+                try
+                    dataSeriesMap.Set(entityAttribute, dataSeries)
+                finally
+                    Monitor.Exit dataSeriesMap
+            member __.Ups entityAttribute datum =
+                Monitor.Enter dataSeriesMap
+                try
+                    let mutable added = false
+                    let dataSeries = &dataSeriesMap.GetRef(entityAttribute, &added)
+                    dataSeries <-
+                        if added then
+                            DataSeries.single datum
+                        else
+                            DataSeries.append datum dataSeries
+                finally
+                    Monitor.Exit dataSeriesMap
+            member __.GetText (TextId i) =
+                texts.Item(int i)
+            member __.TryGetTextId t =
+                texts.Get t
+                |> VOption.map (uint32 >> TextId)
+            member __.GetTextId t =
+                Monitor.Enter texts
+                try
+                    texts.Add t |> uint32 |> TextId
+                finally
+                    Monitor.Exit texts
+            member __.GetData (DataId i) =
+                bytes.Item(int i)
+            member __.GetDataId bs =
+                Monitor.Enter bytes
+                try
+                    bytes.Add bs |> uint32 |> DataId
+                finally
+                    Monitor.Exit bytes
+            member __.SnapshotList() =
+                File.list snapshotPath "*.fsp"
+                |> Result.map (Array.choose (fun f ->
+                        let n = Path.GetFileNameWithoutExtension f
+                        match Int32.TryParse n with
+                        | true, i -> Some i
+                        | false, _ -> None
+                    )
+                )
+            member __.SnapshotSave txId =
+                try
+                    use fs =
+                        Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                        |> File.Create
+                    StreamSerialize.dataSeriesMapSet fs dataSeriesMap
+                    StreamSerialize.textSetSet fs texts
+                    StreamSerialize.byteListSet fs bytes
+                    Ok ()
+                with e -> Error e
+            member __.SnapshotLoad txId =
+                use fs =
+                    let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                    new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
+                dataSeriesMap <- StreamSerialize.dataSeriesMapLoad fs
+                texts <- StreamSerialize.textSetLoad fs 
+                bytes <- StreamSerialize.byteListLoad fs
+                Ok ()
+            member __.SnapshotDelete txId =
+                try
+                    Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
+                    |> File.Delete |> Ok
+                with e -> Error e
+          interface IDisposable with
+            member __.Dispose() = ()
+        }

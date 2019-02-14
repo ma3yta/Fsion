@@ -6,6 +6,19 @@ open Fsion
 
 let basicTypesTests =
 
+    let isUriValid s =
+        let isValid =
+            match Text s,0,s.Length with
+            | UriUri -> true
+            | _ -> false
+        Expect.isTrue isValid ("isValid "+s)
+    let isUriNotValid s =
+        let isValid =
+            match Text s,0,s.Length with
+            | UriUri -> true
+            | _ -> false
+        Expect.isFalse isValid ("isNotValid "+s)
+
     testList "types" [
         
         testList "text" [
@@ -25,6 +38,27 @@ let basicTypesTests =
                 let actual = Text.ofString expected |> Option.get |> Text.toString
                 let same = LanguagePrimitives.PhysicalEquality actual expected
                 Expect.isTrue same "same"
+            }
+        ]
+
+        testList "uri" [
+            
+            testAsync "valid" {
+                isUriValid "f"
+                isUriValid "hel"
+                isUriValid "one_two"
+                isUriValid "one_2"
+                isUriValid "o1e"
+                isUriValid "one1_fred2"
+                isUriValid "one_two_three"
+            }
+        
+            testAsync "not valid" {
+                isUriNotValid "_hi"
+                isUriNotValid "hi_"
+                isUriNotValid "1hi"
+                isUriNotValid "one__two"
+                isUriNotValid "oNe"
             }
         ]
     ]

@@ -15,8 +15,7 @@
     <Compile Include="DataSeriesTests.fs" />
     <Compile Include="ValueTypeTests.fs" />
     <Compile Include="TransactorTests.fs" />
-    <Compile Include="DatabaseTests.fs" />
-    <Compile Include="AttributeTests.fs" />
+    <Compile Include="SelectorTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
