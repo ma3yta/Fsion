@@ -46,7 +46,7 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - Define internal APIs (DB, Log) with in memory and disk implementations - DONE
 - Simple Excel API - DONE
 - Attribute metadata and functionality - DONE but more to do
-- Transactor
+- Transactor - DONE
 - Refactor to decouple Transactor and Selector - February
 - Large sample database - February
 - Other internal API implementations
