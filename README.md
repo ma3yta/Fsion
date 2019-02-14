@@ -45,8 +45,8 @@ Happy to discuss further in the issues section. Welcome anyone else coming on bo
 - DataSeries with compression - DONE
 - Define internal APIs (DB, Log) with in memory and disk implementations - DONE
 - Simple Excel API - DONE
-- Attribute metadata and functionality - DONE but more to do
 - Transactor - DONE
+- Attribute metadata and functionality - DONE but more to do
 - Refactor to decouple Transactor and Selector - February
 - Large sample database - February
 - Other internal API implementations
