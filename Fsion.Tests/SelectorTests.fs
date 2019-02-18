@@ -55,22 +55,22 @@ let dataStoreTestList (store:Selector.Store) = [
         testList "data" [
 
             testAsync "save" {
-                let expected = [|1uy;3uy|]
+                let expected = Data [|1uy;3uy|]
                 let dataId = store.GetDataId expected
                 let actual = store.GetData dataId
                 Expect.equal actual expected "same id"
             }
 
             testAsync "diff id" {
-                let expected = store.GetDataId [|1uy;3uy|]
-                let actual = store.GetDataId [|7uy;5uy|]
+                let expected = Data [|1uy;3uy|] |> store.GetDataId
+                let actual = Data [|7uy;5uy|]|> store.GetDataId
                 Expect.notEqual actual expected "diff id"
             }
 
-            testProp "roundtrip" (fun (bytes:byte[][]) ->
-                let byteIds = Array.Parallel.map store.GetDataId bytes
+            testProp "roundtrip" (fun (data:Data[]) ->
+                let byteIds = Array.Parallel.map store.GetDataId data
                 let actual = Array.Parallel.map store.GetData byteIds
-                Expect.equal actual bytes "bytes same"
+                Expect.equal actual data "bytes same"
             )
         ]
 

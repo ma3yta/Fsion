@@ -413,18 +413,18 @@ let streamSerializeTests =
             testRoundtrip textListSet textListGet texts
         )
 
-        testProp "bytes list roundtrip" (fun bytes ->
+        testProp "data list roundtrip" (fun data ->
             
-            let byteListSet ms (l:byte[] list) =
+            let dataListSet ms (l:Data list) =
                 let s = ListSlim l.Length
                 List.iter (s.Add >> ignore) l
-                StreamSerialize.byteListSet ms s
+                StreamSerialize.dataListSet ms s
 
-            let byteListGet ms =
-                let s = StreamSerialize.byteListLoad ms
+            let dataListGet ms =
+                let s = StreamSerialize.dataListLoad ms
                 List.init s.Count (fun i -> s.[i])
 
-            testRoundtrip byteListSet byteListGet bytes
+            testRoundtrip dataListSet dataListGet data
         )
 
         testProp "entityType roundtrip" (fun (DoNotSize i) ->

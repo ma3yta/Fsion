@@ -17,12 +17,46 @@ module Selector =
         abstract member TryGetTextId : Text -> TextId voption
         abstract member GetTextId : Text -> TextId
         abstract member GetText : TextId -> Text
-        abstract member GetDataId : byte[] -> DataId
-        abstract member GetData : DataId -> byte[]
-        abstract member SnapshotList : unit -> Result<int[],exn>
-        abstract member SnapshotSave : int -> Result<unit,exn>
-        abstract member SnapshotLoad : int -> Result<unit,exn>
-        abstract member SnapshotDelete : int -> Result<unit,exn>
+        abstract member GetDataId : Data -> DataId
+        abstract member GetData : DataId -> Data
+        abstract member SnapshotList : unit -> Result<int[],Text>
+        abstract member SnapshotSave : int -> Result<unit,Text>
+        abstract member SnapshotLoad : int -> Result<unit,Text>
+        abstract member SnapshotDelete : int -> Result<unit,Text>
+
+    let internal loadTransaction (store:Store) (txn:Transaction) =
+        List.iter (store.GetTextId >> ignore) txn.Text
+        List.iter (store.GetDataId >> ignore) txn.Data
+        let tx = txn.Tx
+        List1.iter (fun (ent,att,dat,ven) ->
+            store.Ups (EntityAttribute (ent,att)) (dat,tx,ven)
+        ) txn.Datum
+
+    [<NoComparison;NoEquality>]
+    type EntityMapper<'a,'k> = {
+        EntityType : EntityType
+        KeyAttributes : AttributeId list
+        KeyMapping : int64 list -> 'k
+        ValueMapping : ('a -> (AttributeId * Date * int64) list)
+    }
+
+    let internal createTransaction (mapper:EntityMapper<'a,'k>) (store:Store) (data:'a seq) : Transaction =
+        let tx : Tx = failwith "tx"
+        let date : Date = failwith "date"
+        let count : int = failwith "count"
+        let keys = Array.Parallel.init count (fun i ->
+            List.map (fun att ->
+                match store.Get (EntityAttribute(Entity(mapper.EntityType, uint32 i), att)) with
+                | ValueNone -> 0L
+                | ValueSome ds ->
+                    let date2, tx2, v = DataSeries.get date tx ds
+                    if date2 <= date && tx2 <= tx then v else 0L
+            ) mapper.KeyAttributes
+            |> mapper.KeyMapping
+        )
+        failwith "hi"
+
+
 
     [<NoComparison>]
     type Context =
@@ -105,45 +139,6 @@ module Selector =
                 | Some i -> AttributeId i |> Ok
         | UriInvalid -> "attribute is not a valid uri: " + text |> Error
 
-    
-    //let get (db:Database) (e:Entity) (a:Attribute<'a>) (d:Date) (tx:Tx) =
-    //    db.Get (e,a.Id)
-    //    |> Option.map (DataSeries.get d tx)
-    //    |> Option.bind (fun (d,t,v) ->
-    //        a.ValueType.OfInt v |> Option.map (fun i -> d,t,i))
-
-    let attributeType (cx:Context) (attribute:AttributeId) = // TODO: assumes type exists and is same over time
-        let db = match cx with | Local i -> i | Create (i,_,_,_) -> i
-        db.Get(EntityAttribute(toEntity attribute, AttributeId.attribute_type))
-        |> VOption.map (DataSeries.get Date.maxValue Tx.maxValue)
-        |> VOption.get
-        |> trd
-        |> FsionValue.decodeType
-        |> Option.get
-
-    let newEntity (cx:Context) =
-        match cx with
-        | Local _ -> Array.empty
-        | Create (_,e,_,_) ->
-            Seq.mapi (fun i (Entity(et,_)) ->
-                Entity(et, UInt32.MaxValue - uint32 i)
-            ) e
-            |> Seq.toArray
-
-    let newText (cx:Context) =
-        match cx with
-        | Local _ -> Array.empty
-        | Create (_,_,t,_) -> t.ToArray()
-
-    let newData (cx:Context) =
-        match cx with
-        | Local _ -> Array.empty
-        | Create (_,_,_,d) -> d.ToArray()
-
-    let queryTable (cx:Context) (query:Text) : Result<AttributeId[] * int64[,],Text> = // "trade" "trade/1234" "trade/1234/quantity" "trade/1234/party/id" "trade/1234/trader/name"
-        failwith "query"
-
-
     let createMemory (snapshotPath:string) =
         let mutable dataSeriesMap = MapSlim()
         let mutable texts = SetSlim()
@@ -197,6 +192,7 @@ module Selector =
                         | false, _ -> None
                     )
                 )
+                |> Result.mapError (fun e -> Text (e.ToString()))
             member __.SnapshotSave txId =
                 try
                     use fs =
@@ -204,22 +200,22 @@ module Selector =
                         |> File.Create
                     StreamSerialize.dataSeriesMapSet fs dataSeriesMap
                     StreamSerialize.textSetSet fs texts
-                    StreamSerialize.byteListSet fs bytes
+                    StreamSerialize.dataListSet fs bytes
                     Ok ()
-                with e -> Error e
+                with e -> Error (Text (e.ToString()))
             member __.SnapshotLoad txId =
                 use fs =
                     let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
                     new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
                 dataSeriesMap <- StreamSerialize.dataSeriesMapLoad fs
                 texts <- StreamSerialize.textSetLoad fs 
-                bytes <- StreamSerialize.byteListLoad fs
+                bytes <- StreamSerialize.dataListLoad fs
                 Ok ()
             member __.SnapshotDelete txId =
                 try
                     Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
                     |> File.Delete |> Ok
-                with e -> Error e
+                with e -> Error (Text (e.ToString()))
           interface IDisposable with
             member __.Dispose() = ()
         }

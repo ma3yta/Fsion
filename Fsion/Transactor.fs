@@ -87,14 +87,13 @@ module Transactor =
 
     let internal updateTransaction (recentTxn:Transaction list1) (recentCounts:Counts list1)
                                    (textAttributes:TempSet) (dataAttributes:TempSet) (data:Transaction) =
-        let Entity(_,lastTxId),_,_,_ = recentTxn.Head.Datum.Head
-        let nextTxId = lastTxId + 1u
-        let Entity(_,txId),_,_,_ = data.Datum.Head
-        if txId = nextTxId then
+        let nextTx = recentTxn.Head.Tx |> Tx.next
+        let tx = data.Tx
+        if tx = nextTx then
             if noNewCounts recentCounts.Head data then Some (data, recentCounts.Head)
             else Some (data, updateCounts recentCounts.Head data)
-        elif int(nextTxId-txId) >= recentCounts.Length then None
-        elif noNewCounts (List1.item (int(nextTxId-txId)) recentCounts) data then
+        elif nextTx-tx >= recentCounts.Length then None
+        elif noNewCounts (List1.item (nextTx-tx) recentCounts) data then
             let data = // Just update txIds
                 { data with
                     Datum =
@@ -102,20 +101,20 @@ module Transactor =
                         let _,_,date,_ = data.Datum.Head
                         List1.toList data.Datum
                         |> List.map (fun (Entity(ety,eid),att,dat,ven) ->
-                            if ety = tranET then Entity(ety,nextTxId),att,dat,ven
+                            if ety = tranET then Entity(ety,nextTx.Int),att,dat,ven
                             else Entity(ety,eid),att,dat,ven
                         )
-                        |> List1.init (Entity(tranET,nextTxId),AttributeId.transaction_based_on,date,Some(txId-1u) |> FsionValue.encodeUInt)
+                        |> List1.init (Entity(tranET,nextTx.Int),AttributeId.transaction_based_on,date,Some(tx.Int-1u) |> FsionValue.encodeUInt)
                 }
             Some (data, recentCounts.Head)
         else
             let currentCounts = recentCounts.Head
-            let originalCounts = List1.item (int(nextTxId-txId)) recentCounts
+            let originalCounts = List1.item (nextTx-tx) recentCounts
             let data = // Update txIds, seti, setText and setData
                 let pastTexts =
                     if List.isEmpty data.Text then []
                     else
-                        List.init (int(nextTxId-txId)) (fun i ->
+                        List.init (nextTx-tx) (fun i ->
                             (List1.item i recentTxn).Text
                         )
                         |> List.rev
@@ -129,7 +128,7 @@ module Transactor =
                         List1.toList data.Datum
                         |> List.map (fun (Entity(ety,eid),att,dat,ven) ->
                             let eid =
-                                if ety=tranET then nextTxId
+                                if ety=tranET then nextTx.Int
                                 elif Counts.get ety originalCounts > eid then eid
                                 else eid + Counts.get ety currentCounts - Counts.get ety originalCounts
                             let ven =
@@ -157,7 +156,7 @@ module Transactor =
                                 else ven
                             Entity(ety,eid),att,dat,ven
                         )
-                        |> List1.init (Entity(tranET,nextTxId),AttributeId.transaction_based_on,date,Some(txId-1u) |> FsionValue.encodeUInt)
+                        |> List1.init (Entity(tranET,nextTx.Int),AttributeId.transaction_based_on,date,Some(tx.Int-1u) |> FsionValue.encodeUInt)
                 }
             Some (data, updateCounts currentCounts data)
 

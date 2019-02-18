@@ -412,6 +412,12 @@ module internal StreamSerialize =
         read s bs 0 l
         bs
 
+    let dataSet (s:Stream) (Data bs) =
+        bytesSet s bs
+
+    let dataGet (s:Stream) =
+        bytesGet s |> Data
+
     let textSetSet (s:Stream) (l:Text SetSlim) =
         uint32Set s (uint32 l.Count)
         for i = 0 to l.Count-1 do
@@ -427,17 +433,17 @@ module internal StreamSerialize =
         repeat l
         ts
 
-    let byteListSet (s:Stream) (l:byte[] ListSlim) =
+    let dataListSet (s:Stream) (l:Data ListSlim) =
         uint32Set s (uint32 l.Count)
         for i = 0 to l.Count-1 do
-            l.Item i |> bytesSet s
+            l.Item i |> dataSet s
 
-    let byteListLoad (s:Stream) =
+    let dataListLoad (s:Stream) =
         let l = uint32Get s |> int
         let bs = ListSlim()
         let rec repeat i =
             if i<>0 then
-                bytesGet s |> bs.Add |> ignore
+                dataGet s |> bs.Add |> ignore
                 repeat (i-1)
         repeat l
         bs

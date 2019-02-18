@@ -68,8 +68,14 @@ module Time =
         DateTime t
 
 [<Struct>]
-type Tx = Tx of uint32
-    
+type Tx =
+    | Tx of uint32
+    member m.Int =
+        let (Tx i) = m
+        i
+    static member (-)(Tx t1,Tx t2) = int(t1-t2)
+
+
 module Tx =
     let maxValue = Tx UInt32.MaxValue
     let next (Tx i) = Tx (i+1u)
@@ -167,7 +173,10 @@ type Transaction = {
     Text: Text list // set? Needs client to make unique for effiecient serialization
     Data: Data list
     Datum: Datum list1
-}
+} with
+    member m.Tx =
+        let Entity(_,txId),_,_,_ = m.Datum.Head
+        Tx txId
 
 [<Struct>]
 type Uri =
