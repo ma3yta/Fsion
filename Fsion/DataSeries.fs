@@ -2,7 +2,6 @@
 
 open System
 open System.IO
-open Fsion
 
 module internal ArraySerialize =
 

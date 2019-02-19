@@ -1,31 +1,6 @@
 ﻿namespace Fsion
 
-open System
-open Fsion
-
 module Transactor =
-
-    [<Struct>]
-    type Counts =
-        internal
-        | Counts of uint32 array
-
-    module internal Counts =
-        [<Struct>]
-        type internal Edit =
-            | Edit of uint32 array ref
-        let get (EntityType ety) (Counts a) =
-            if Array.length a > int ety+1 then a.[int ety+1] else 0u
-        let getText (Counts a) = a.[0]
-        let getData (Counts a) = a.[1]
-        let copy (Counts a) = Array.copy a |> ref |> Edit
-        let set (EntityType ety) (Edit a) v =
-            if Array.length !a <= int ety+1 then Array.Resize(a, int ety+2)
-            (!a).[int ety+1] <- v
-        let setText (Edit a) v = (!a).[0] <- v
-        let setData (Edit a) v = (!a).[1] <- v
-        let toCounts (Edit a) = Counts !a
-        let empty = Counts [|0u;0u|]
 
     [<Struct;NoComparison>]
     type internal TempSet =
@@ -71,7 +46,7 @@ module Transactor =
         TempSet(text,textEdit), TempSet(data,dataEdit)
 
     let internal updateCounts (counts:Counts) (txn:Transaction) : Counts =
-        let edit = Counts.copy counts
+        let edit = Counts.toEdit counts
         if List.isEmpty txn.Text |> not then
             Counts.getText counts
             |> (+) (uint32(List.length txn.Text))

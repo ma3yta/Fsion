@@ -3,7 +3,6 @@
 open System
 open System.IO
 open System.Threading
-open Fsion
 
 // TODO: sets, typed entities, decimal
 
@@ -37,14 +36,15 @@ module Selector =
         EntityType : EntityType
         KeyAttributes : AttributeId list
         KeyMapping : int64 list -> 'k
-        ValueMapping : ('a -> (AttributeId * Date * int64) list)
+        ValueMapping : (Text -> TextId) -> (Data -> DataId) -> 'a -> (AttributeId * Date * int64) list
     }
 
-    let internal createTransaction (mapper:EntityMapper<'a,'k>) (store:Store) (data:'a seq) : Transaction =
-        let tx : Tx = failwith "tx"
+    let internal createTransaction (mapper:EntityMapper<'a,'k>) (store:Store) (rows:'a seq) =
+        let tx,counts : Tx * Counts = failwith "counts"
         let date : Date = failwith "date"
-        let count : int = failwith "count"
-        let keys = Array.Parallel.init count (fun i ->
+
+        let entityCount = Counts.get mapper.EntityType counts |> int
+        let keys = Array.Parallel.init entityCount (fun i ->
             List.map (fun att ->
                 match store.Get (EntityAttribute(Entity(mapper.EntityType, uint32 i), att)) with
                 | ValueNone -> 0L
@@ -54,9 +54,49 @@ module Selector =
             ) mapper.KeyAttributes
             |> mapper.KeyMapping
         )
-        failwith "hi"
 
+        let texts = SetSlim()
+        let datas = ListSlim()
+        
+        let valueMapping =
+            let textCount = Counts.getText counts
+            let getTextId text =
+                match store.TryGetTextId text with
+                | ValueSome (TextId i) when i < textCount -> TextId i
+                | _ -> textCount + uint32(texts.Add text) |> TextId
+            let dataCount = Counts.getData counts
+            let getDataId data =
+                dataCount + uint32(datas.Add data) |> DataId
+            mapper.ValueMapping getTextId getDataId
 
+        Seq.mapFold (fun count row ->
+            let values = valueMapping row
+            let key =
+                mapper.KeyAttributes
+                |> List.map (fun att ->
+                    List.fold (fun (ds,ls) (a,d,l) ->
+                        if a=att && d>=ds && d<=date then d,l else ds,ls
+                    ) (Date.minValue,0L) values
+                    |> snd
+                )
+                |> mapper.KeyMapping
+            let i = Array.IndexOf(keys, key)
+            let i,count =
+                if -1=i then
+                    count, count+1
+                else i, count
+            let e = Entity(mapper.EntityType, uint32 i)
+            List.map (fun (a,d,v) -> e,a,d,v) values, count
+        ) entityCount rows
+        |> fst
+        |> List.concat
+        |> List1.tryOfList
+        |> Option.map (fun datum -> {
+                Text = texts.ToList()
+                Data = datas.ToList()
+                Datum = datum
+            }
+        )
 
     [<NoComparison>]
     type Context =

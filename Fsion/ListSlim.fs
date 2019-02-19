@@ -26,3 +26,9 @@ type ListSlim<'k> =
         m.entries.[i] <- key
         m.count <- i+1
         i
+
+    member m.ToArray() =
+        Array.init m.count (Array.get m.entries)
+
+    member m.ToList() =
+        List.init m.count (Array.get m.entries)
