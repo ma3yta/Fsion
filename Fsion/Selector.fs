@@ -10,6 +10,7 @@ module Selector =
 
     type Store =
         inherit IDisposable
+        abstract member State : Tx * Counts
         abstract member Get : EntityAttribute -> DataSeries voption
         abstract member Set : EntityAttribute -> DataSeries -> unit
         abstract member Ups : EntityAttribute -> (Date * Tx * int64) -> unit
@@ -22,6 +23,11 @@ module Selector =
         abstract member SnapshotSave : int -> Result<unit,Text>
         abstract member SnapshotLoad : int -> Result<unit,Text>
         abstract member SnapshotDelete : int -> Result<unit,Text>
+
+    let getValue (store:Store) entity attribute date tx =
+        match store.Get (EntityAttribute(entity, attribute)) with
+        | ValueNone -> 0L
+        | ValueSome ds -> DataSeries.getValue date tx ds
 
     let internal loadTransaction (store:Store) (txn:Transaction) =
         List.iter (store.GetTextId >> ignore) txn.Text
@@ -39,19 +45,15 @@ module Selector =
         ValueMapping : (Text -> TextId) -> (Data -> DataId) -> 'a -> (AttributeId * Date * int64) list
     }
 
-    let internal createTransaction (mapper:EntityMapper<'a,'k>) (store:Store) (rows:'a seq) =
-        let tx,counts : Tx * Counts = failwith "counts"
-        let date : Date = failwith "date"
-
+    let internal createTransaction (mapper:EntityMapper<'a,'k>) (store:Store)
+                                   (tx,counts) (date,rows:'a seq) =
         let entityCount = Counts.get mapper.EntityType counts |> int
         let keys = Array.Parallel.init entityCount (fun i ->
-            List.map (fun att ->
-                match store.Get (EntityAttribute(Entity(mapper.EntityType, uint32 i), att)) with
-                | ValueNone -> 0L
-                | ValueSome ds ->
-                    let date2, tx2, v = DataSeries.get date tx ds
-                    if date2 <= date && tx2 <= tx then v else 0L
-            ) mapper.KeyAttributes
+            let e = Entity(mapper.EntityType, uint32 i)
+            mapper.KeyAttributes
+            |> List.map (fun att ->
+                getValue store e att date tx
+            )
             |> mapper.KeyMapping
         )
 
@@ -69,29 +71,33 @@ module Selector =
                 dataCount + uint32(datas.Add data) |> DataId
             mapper.ValueMapping getTextId getDataId
 
-        Seq.mapFold (fun count row ->
-            let values = valueMapping row
+        Seq.map valueMapping rows
+        |> Seq.mapFold (fun count values ->  //TODO: make parallel, getValue bit costs probably
             let key =
                 mapper.KeyAttributes
                 |> List.map (fun att ->
                     List.fold (fun (ds,ls) (a,d,l) ->
-                        if a=att && d>=ds && d<=date then d,l else ds,ls
+                        if a=att && d>=ds then d,l else ds,ls
                     ) (Date.minValue,0L) values
                     |> snd
                 )
                 |> mapper.KeyMapping
-            let i = Array.IndexOf(keys, key)
-            let i,count =
-                if -1=i then
-                    count, count+1
-                else i, count
-            let e = Entity(mapper.EntityType, uint32 i)
-            List.map (fun (a,d,v) -> e,a,d,v) values, count
-        ) entityCount rows
+            match Array.IndexOf(keys, key) with
+            | -1 ->
+                let e = Entity(mapper.EntityType, uint32 count)
+                List.map (fun (a,d,v) -> e,a,d,v) values, count+1
+            | i ->
+                let e = Entity(mapper.EntityType, uint32 i)
+                List.choose (fun (a,d,v) ->
+                    if getValue store e a d tx = v then None
+                    else Some (e,a,d,v)
+                ) values, count
+        ) entityCount
         |> fst
         |> List.concat
         |> List1.tryOfList
-        |> Option.map (fun datum -> {
+        |> Option.map (fun datum ->
+            {
                 Text = texts.ToList()
                 Data = datas.ToList()
                 Datum = datum
@@ -183,7 +189,9 @@ module Selector =
         let mutable dataSeriesMap = MapSlim()
         let mutable texts = SetSlim()
         let mutable bytes = ListSlim()
+        let mutable state = Tx 0u, Counts.empty
         { new Store with
+            member __.State = state
             member __.Get entityAttribute =
                 dataSeriesMap.GetOption entityAttribute
             member __.Set entityAttribute dataSeries =

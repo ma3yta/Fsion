@@ -324,6 +324,11 @@ module internal DataSeries =
         getValue i currentDate currentValue currentTx
             (currentDate,currentValue,currentTx)
 
+    /// Returns the existing value from a DataSetSeries for a queryDate and queryTx.
+    let getValue queryDate queryTx dataSeries =
+        let d,t,v = get queryDate queryTx dataSeries
+        if t <= queryTx && d <= queryDate then v else 0L
+
     /// Create a new datum from an add set datum.
     let setAdd (date,tx,newValue:uint64) =
         date,tx,int64 newValue
