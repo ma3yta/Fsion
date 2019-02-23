@@ -12,17 +12,14 @@ module Selector =
         inherit IDisposable
         abstract member State : Tx * Counts
         abstract member Get : EntityAttribute -> DataSeries voption
-        abstract member Set : EntityAttribute -> DataSeries -> unit
         abstract member Ups : EntityAttribute -> (Date * Tx * int64) -> unit
-        abstract member TryGetTextId : Text -> TextId voption
-        abstract member GetTextId : Text -> TextId
         abstract member GetText : TextId -> Text
-        abstract member GetDataId : Data -> DataId
+        abstract member GetTextId : Text -> TextId
+        abstract member TryGetTextId : Text -> TextId voption
         abstract member GetData : DataId -> Data
-        abstract member SnapshotList : unit -> Result<int[],Text>
-        abstract member SnapshotSave : int -> Result<unit,Text>
-        abstract member SnapshotLoad : int -> Result<unit,Text>
-        abstract member SnapshotDelete : int -> Result<unit,Text>
+        abstract member GetDataId : Data -> DataId
+        abstract member SnapshotSave : unit -> Result<unit,Text>
+        abstract member SnapshotLoad : unit -> Result<unit,Text>
 
     let getValue (store:Store) entity attribute date tx =
         match store.Get (EntityAttribute(entity, attribute)) with
@@ -194,12 +191,6 @@ module Selector =
             member __.State = state
             member __.Get entityAttribute =
                 dataSeriesMap.GetOption entityAttribute
-            member __.Set entityAttribute dataSeries =
-                Monitor.Enter dataSeriesMap
-                try
-                    dataSeriesMap.Set(entityAttribute, dataSeries)
-                finally
-                    Monitor.Exit dataSeriesMap
             member __.Ups entityAttribute datum =
                 Monitor.Enter dataSeriesMap
                 try
@@ -214,15 +205,15 @@ module Selector =
                     Monitor.Exit dataSeriesMap
             member __.GetText (TextId i) =
                 texts.Item(int i)
-            member __.TryGetTextId t =
-                texts.Get t
-                |> VOption.map (uint32 >> TextId)
             member __.GetTextId t =
                 Monitor.Enter texts
                 try
                     texts.Add t |> uint32 |> TextId
                 finally
                     Monitor.Exit texts
+            member __.TryGetTextId t =
+                texts.Get t
+                |> VOption.map (uint32 >> TextId)
             member __.GetData (DataId i) =
                 bytes.Item(int i)
             member __.GetDataId bs =
@@ -231,39 +222,41 @@ module Selector =
                     bytes.Add bs |> uint32 |> DataId
                 finally
                     Monitor.Exit bytes
-            member __.SnapshotList() =
-                File.list snapshotPath "*.fsp"
-                |> Result.map (Array.choose (fun f ->
-                        let n = Path.GetFileNameWithoutExtension f
-                        match Int32.TryParse n with
-                        | true, i -> Some i
-                        | false, _ -> None
-                    )
-                )
-                |> Result.mapError (fun e -> Text (e.ToString()))
-            member __.SnapshotSave txId =
+            member __.SnapshotSave() = //TODO: Only keep latest valid
+                let filename =
+                    let (Tx tx) = fst state
+                    Path.Combine [|snapshotPath;string tx + ".fsp"|]
                 try
-                    use fs =
-                        Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
-                        |> File.Create
+                    use fs = File.Create filename
                     StreamSerialize.dataSeriesMapSet fs dataSeriesMap
                     StreamSerialize.textSetSet fs texts
                     StreamSerialize.dataListSet fs bytes
                     Ok ()
                 with e -> Error (Text (e.ToString()))
-            member __.SnapshotLoad txId =
-                use fs =
-                    let filename = Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
-                    new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
-                dataSeriesMap <- StreamSerialize.dataSeriesMapLoad fs
-                texts <- StreamSerialize.textSetLoad fs 
-                bytes <- StreamSerialize.dataListLoad fs
-                Ok ()
-            member __.SnapshotDelete txId =
-                try
-                    Path.Combine [|snapshotPath;txId.ToString()+".fsp"|]
-                    |> File.Delete |> Ok
-                with e -> Error (Text (e.ToString()))
+            member __.SnapshotLoad() =
+                File.list snapshotPath "*.fsp"
+                |> Result.mapError (fun e -> Text (e.ToString()))
+                |> Result.map (
+                    Array.choose (fun f ->
+                        let n = Path.GetFileNameWithoutExtension f
+                        match Int32.TryParse n with
+                        | true, i -> Some i
+                        | false, _ -> None
+                    )
+                    >> Array.max
+                )
+                |> Result.map (fun tx ->
+                    use fs =
+                        let filename = Path.Combine [|snapshotPath;string tx + ".fsp"|]
+                        new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
+                    let ds = StreamSerialize.dataSeriesMapLoad fs
+                    let t = StreamSerialize.textSetLoad fs 
+                    let b = StreamSerialize.dataListLoad fs
+                    dataSeriesMap <- ds
+                    texts <- t
+                    bytes <- b
+                    ()
+                )
           interface IDisposable with
             member __.Dispose() = ()
         }

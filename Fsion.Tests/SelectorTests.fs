@@ -8,21 +8,21 @@ let dataStoreTestList (store:Selector.Store) = [
 
         testList "dataSeries" [
 
-            testAsync "set get" {
-                let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                store.Set (EntityAttribute(Entity(EntityType.attribute,1u), AttributeId.time)) dataSeries
-                let actual = store.Get (EntityAttribute(Entity(EntityType.attribute,1u), AttributeId.time))
-                Expect.equal actual (ValueSome dataSeries) "bytes 1"
-            }
+            //testAsync "set get" {
+            //    let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
+            //    store.Set (EntityAttribute(Entity(EntityType.attribute,1u), AttributeId.time)) dataSeries
+            //    let actual = store.Get (EntityAttribute(Entity(EntityType.attribute,1u), AttributeId.time))
+            //    Expect.equal actual (ValueSome dataSeries) "bytes 1"
+            //}
 
-            testAsync "ups" {
-                let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
-                store.Set (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time)) dataSeries
-                store.Ups (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time)) (Date 2u,Tx 2u,2L)
-                let actual = store.Get (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time))
-                let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries |> ValueSome
-                Expect.equal actual expected "append"
-            }
+            //testAsync "ups" {
+            //    let dataSeries = DataSeries.single (Date 1u,Tx 1u,1L)
+            //    store.Set (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time)) dataSeries
+            //    store.Ups (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time)) (Date 2u,Tx 2u,2L)
+            //    let actual = store.Get (EntityAttribute(Entity(EntityType.attribute,2u), AttributeId.time))
+            //    let expected = DataSeries.append (Date 2u,Tx 2u,2L) dataSeries |> ValueSome
+            //    Expect.equal actual expected "append"
+            //}
         ]
 
         testList "text" [
@@ -76,25 +76,25 @@ let dataStoreTestList (store:Selector.Store) = [
 
         testList "snapshot" [
         
-            testSequencedGroup null <| testList null [
+            //testSequencedGroup null <| testList null [
             
-                testAsync "list empty" {
-                    Expect.equal (store.SnapshotList()) (Ok [||]) "list empty"
-                }
+            //    testAsync "list empty" {
+            //        Expect.equal (store.SnapshotList()) (Ok [||]) "list empty"
+            //    }
             
-                testAsync "save list delete" {
-                    Expect.equal (store.SnapshotSave 23) (Ok ()) "saves"
-                    Expect.equal (store.SnapshotList()) (Ok [|23|]) "lists"
-                    Expect.equal (store.SnapshotDelete 23) (Ok ()) "deletes"
-                }
-            ]
+            //    testAsync "save list delete" {
+            //        Expect.equal (store.SnapshotSave 23) (Ok ()) "saves"
+            //        Expect.equal (store.SnapshotList()) (Ok [|23|]) "lists"
+            //        Expect.equal (store.SnapshotDelete 23) (Ok ()) "deletes"
+            //    }
+            //]
 
-            testSequenced <| testAsync "save list load delete" {
-                Expect.equal (store.SnapshotSave 29) (Ok ()) "saves"
-                Expect.equal (store.SnapshotList()) (Ok [|29|]) "lists"
-                Expect.equal (store.SnapshotLoad 29) (Ok ()) "loads"
-                Expect.equal (store.SnapshotDelete 29) (Ok ()) "deletes"
-            }
+            //testSequenced <| testAsync "save list load delete" {
+            //    Expect.equal (store.SnapshotSave 29) (Ok ()) "saves"
+            //    Expect.equal (store.SnapshotList()) (Ok [|29|]) "lists"
+            //    Expect.equal (store.SnapshotLoad 29) (Ok ()) "loads"
+            //    Expect.equal (store.SnapshotDelete 29) (Ok ()) "deletes"
+            //}
         ]
     ]
 
