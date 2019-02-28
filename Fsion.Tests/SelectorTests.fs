@@ -46,8 +46,8 @@ let dataStoreTestList (store:Selector.Store) = [
             }
         
             testProp "roundtrip" (fun (texts:Text[]) ->
-                let textIds = Array.Parallel.map store.GetTextId texts
-                let actual = Array.Parallel.map store.GetText textIds
+                let textIds = Array.map store.GetTextId texts
+                let actual = Array.map store.GetText textIds
                 Expect.equal actual texts "strings same"
             )
         ]

@@ -63,3 +63,5 @@ module Auto =
             |> List.iter (fun f -> f())
             afterTestingList <- []
         )
+    [<CompilerMessage("type hole", 9999)>]
+    let ___<'a> = failwith<'a> "type hole"

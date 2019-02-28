@@ -91,7 +91,7 @@ type MapSlim<'k,'v when 'k : equality and 'k :> IEquatable<'k>> =
             added <- true
             &m.AddKey(key, hashCode)
 
-    member m.GetOption(key:'k) : 'v voption =
+    member m.GetOption (key:'k) : 'v voption =
         let entries = m.entries
         let mutable i = entries.[key.GetHashCode() &&& (entries.Length-1)].bucket-1
         while i >= 0 && not(key.Equals(entries.[i].key)) do
@@ -99,9 +99,12 @@ type MapSlim<'k,'v when 'k : equality and 'k :> IEquatable<'k>> =
         if i >= 0 then ValueSome entries.[i].value
         else ValueNone
 
-    member m.Item(i) : 'k * 'v =
+    member m.Item i : 'k * 'v =
         let entries = m.entries.[i]
         entries.key, entries.value
+
+    member m.Key i : 'k =
+        m.entries.[i].key
 
 [<AutoOpen>]
 module MapSlimAutoOpen =

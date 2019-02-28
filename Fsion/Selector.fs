@@ -10,7 +10,6 @@ module Selector =
 
     type Store =
         inherit IDisposable
-        abstract member State : Tx * Counts
         abstract member Get : EntityAttribute -> DataSeries voption
         abstract member Ups : EntityAttribute -> (Date * Tx * int64) -> unit
         abstract member GetText : TextId -> Text
@@ -20,19 +19,21 @@ module Selector =
         abstract member GetDataId : Data -> DataId
         abstract member SnapshotSave : unit -> Result<unit,Text>
         abstract member SnapshotLoad : unit -> Result<unit,Text>
+        abstract member CalculateCounts : unit -> Counts * Tx
 
     let getValue (store:Store) entity attribute date tx =
         match store.Get (EntityAttribute(entity, attribute)) with
         | ValueNone -> 0L
         | ValueSome ds -> DataSeries.getValue date tx ds
 
-    let internal loadTransaction (store:Store) (txn:Transaction) =
+    let internal loadTransaction (store:Store) (counts:Counts.Edit) (txn:Transaction) =
         List.iter (store.GetTextId >> ignore) txn.Text
         List.iter (store.GetDataId >> ignore) txn.Data
         let tx = txn.Tx
         List1.iter (fun (ent,att,dat,ven) ->
-            store.Ups (EntityAttribute (ent,att)) (dat,tx,ven)
+            store.Ups (EntityAttribute(ent,att)) (dat,tx,ven)
         ) txn.Datum
+        Counts.update counts txn
 
     [<NoComparison;NoEquality>]
     type EntityMapper<'a,'k> = {
@@ -43,7 +44,7 @@ module Selector =
     }
 
     let internal createTransaction (mapper:EntityMapper<'a,'k>) (store:Store)
-                                   (tx,counts) (date,rows:'a seq) =
+                                   tx counts (date,rows:'a seq) =
         let entityCount = Counts.get mapper.EntityType counts |> int
         let keys = Array.Parallel.init entityCount (fun i ->
             let e = Entity(mapper.EntityType, uint32 i)
@@ -100,6 +101,86 @@ module Selector =
                 Datum = datum
             }
         )
+
+    // Full safe file load save
+
+    let createMemory (snapshotPath:string) =
+        let mutable dataSeriesMap = MapSlim()
+        let mutable texts = SetSlim()
+        let mutable bytes = ListSlim()
+        { new Store with
+            member __.Get entityAttribute =
+                dataSeriesMap.GetOption entityAttribute
+            member __.Ups entityAttribute datum =
+                let mutable added = false
+                let dataSeries = &dataSeriesMap.GetRef(entityAttribute, &added)
+                dataSeries <-
+                    if added then
+                        DataSeries.single datum
+                    else
+                        DataSeries.append datum dataSeries
+            member __.GetText (TextId i) =
+                texts.Item(int i)
+            member __.GetTextId t =
+                texts.Add t |> uint32 |> TextId
+            member __.TryGetTextId t =
+                texts.Get t
+                |> VOption.map (uint32 >> TextId)
+            member __.GetData (DataId i) =
+                bytes.Item(int i)
+            member __.GetDataId bs =
+                bytes.Add bs |> uint32 |> DataId
+            member __.SnapshotSave() =
+                let filename =
+                    let goodTimestamp = ""
+                    Path.Combine [|snapshotPath;goodTimestamp + ".fsp"|]
+                try
+                    use fs = File.Create filename
+                    StreamSerialize.dataSeriesMapSet fs dataSeriesMap
+                    StreamSerialize.textSetSet fs texts
+                    StreamSerialize.dataListSet fs bytes
+                    Ok ()
+                with e -> Error (Text (e.ToString()))
+            member __.SnapshotLoad() =
+                File.list snapshotPath "*.fsp"
+                |> Result.mapError (fun e -> Text (e.ToString()))
+                |> Result.map (
+                    Array.choose (fun f ->
+                        let n = Path.GetFileNameWithoutExtension f
+                        match Int32.TryParse n with
+                        | true, i -> Some i
+                        | false, _ -> None
+                    )
+                    >> Array.max
+                )
+                |> Result.map (fun tx ->
+                    use fs =
+                        let filename = Path.Combine [|snapshotPath;string tx + ".fsp"|]
+                        new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
+                    let ds = StreamSerialize.dataSeriesMapLoad fs
+                    let t = StreamSerialize.textSetLoad fs 
+                    let b = StreamSerialize.dataListLoad fs
+                    dataSeriesMap <- ds
+                    texts <- t
+                    bytes <- b
+                    ()
+                )
+            member __.CalculateCounts() =
+                let mutable txId = 0u
+                let edit = Counts.emptyEdit()
+                for i = dataSeriesMap.Count downto 0 do
+                    let (EntityAttribute(Entity(EntityType et,eid) as ent,_)) =
+                        dataSeriesMap.Key i
+                    Counts.check edit ent
+                    if et = EntityType.Int.transaction && eid > txId then txId <- eid
+                Counts.addText edit (uint32 texts.Count)
+                Counts.addData edit (uint32 bytes.Count)
+                Counts.toCounts edit, Tx txId
+          interface IDisposable with
+            member __.Dispose() = ()
+        }
+
+
 
     [<NoComparison>]
     type Context =
@@ -181,82 +262,3 @@ module Selector =
                 | None -> "uri not recognised as an attribute: " + text |> Error
                 | Some i -> AttributeId i |> Ok
         | UriInvalid -> "attribute is not a valid uri: " + text |> Error
-
-    let createMemory (snapshotPath:string) =
-        let mutable dataSeriesMap = MapSlim()
-        let mutable texts = SetSlim()
-        let mutable bytes = ListSlim()
-        let mutable state = Tx 0u, Counts.empty
-        { new Store with
-            member __.State = state
-            member __.Get entityAttribute =
-                dataSeriesMap.GetOption entityAttribute
-            member __.Ups entityAttribute datum =
-                Monitor.Enter dataSeriesMap
-                try
-                    let mutable added = false
-                    let dataSeries = &dataSeriesMap.GetRef(entityAttribute, &added)
-                    dataSeries <-
-                        if added then
-                            DataSeries.single datum
-                        else
-                            DataSeries.append datum dataSeries
-                finally
-                    Monitor.Exit dataSeriesMap
-            member __.GetText (TextId i) =
-                texts.Item(int i)
-            member __.GetTextId t =
-                Monitor.Enter texts
-                try
-                    texts.Add t |> uint32 |> TextId
-                finally
-                    Monitor.Exit texts
-            member __.TryGetTextId t =
-                texts.Get t
-                |> VOption.map (uint32 >> TextId)
-            member __.GetData (DataId i) =
-                bytes.Item(int i)
-            member __.GetDataId bs =
-                Monitor.Enter bytes
-                try
-                    bytes.Add bs |> uint32 |> DataId
-                finally
-                    Monitor.Exit bytes
-            member __.SnapshotSave() = //TODO: Only keep latest valid
-                let filename =
-                    let (Tx tx) = fst state
-                    Path.Combine [|snapshotPath;string tx + ".fsp"|]
-                try
-                    use fs = File.Create filename
-                    StreamSerialize.dataSeriesMapSet fs dataSeriesMap
-                    StreamSerialize.textSetSet fs texts
-                    StreamSerialize.dataListSet fs bytes
-                    Ok ()
-                with e -> Error (Text (e.ToString()))
-            member __.SnapshotLoad() =
-                File.list snapshotPath "*.fsp"
-                |> Result.mapError (fun e -> Text (e.ToString()))
-                |> Result.map (
-                    Array.choose (fun f ->
-                        let n = Path.GetFileNameWithoutExtension f
-                        match Int32.TryParse n with
-                        | true, i -> Some i
-                        | false, _ -> None
-                    )
-                    >> Array.max
-                )
-                |> Result.map (fun tx ->
-                    use fs =
-                        let filename = Path.Combine [|snapshotPath;string tx + ".fsp"|]
-                        new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)
-                    let ds = StreamSerialize.dataSeriesMapLoad fs
-                    let t = StreamSerialize.textSetLoad fs 
-                    let b = StreamSerialize.dataListLoad fs
-                    dataSeriesMap <- ds
-                    texts <- t
-                    bytes <- b
-                    ()
-                )
-          interface IDisposable with
-            member __.Dispose() = ()
-        }

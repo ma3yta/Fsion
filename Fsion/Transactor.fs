@@ -47,17 +47,7 @@ module Transactor =
 
     let internal updateCounts (counts:Counts) (txn:Transaction) : Counts =
         let edit = Counts.toEdit counts
-        if List.isEmpty txn.Text |> not then
-            Counts.getText counts
-            |> (+) (uint32(List.length txn.Text))
-            |> Counts.setText edit
-        if List.isEmpty txn.Data |> not then
-            Counts.getData counts
-            |> (+) (uint32(List.length txn.Data))
-            |> Counts.setData edit
-        List1.iter (fun (Entity((EntityType etyId) as ety,eid),_,_,_) ->
-            if Counts.get ety counts <= eid && etyId <> EntityType.Int.transaction then Counts.set ety edit (eid+1u)
-        ) txn.Datum
+        Counts.update edit txn
         Counts.toCounts edit
 
     let internal updateTransaction (recentTxn:Transaction list1) (recentCounts:Counts list1)

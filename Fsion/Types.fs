@@ -196,14 +196,25 @@ module internal Counts =
         if Array.length a > int ety+1 then a.[int ety+1] else 0u
     let getText (Counts a) = a.[0]
     let getData (Counts a) = a.[1]
+    let emptyEdit() = Array.zeroCreate 2 |> ref |> Edit
     let toEdit (Counts a) = Array.copy a |> ref |> Edit
-    let set (EntityType ety) (Edit a) v =
-        if Array.length !a <= int ety+1 then Array.Resize(a, int ety+2)
-        (!a).[int ety+1] <- v
-    let setText (Edit a) v = (!a).[0] <- v
-    let setData (Edit a) v = (!a).[1] <- v
+    let check (Edit a) (Entity(EntityType ety,eid)) =
+        if ety <> EntityType.Int.transaction then
+            if Array.length !a <= int ety+1 then Array.Resize(a, int ety+2)
+            let a = !a
+            if a.[int ety+1] <= eid then a.[int ety+1] <- eid + 1u
+    let addText (Edit a) v =
+        let a = !a
+        a.[0] <- a.[0] + v
+    let addData (Edit a) v =
+        let a = !a
+        a.[1] <- a.[1] + v
     let toCounts (Edit a) = Counts !a
     let empty = Counts [|0u;0u|]
+    let update edit (txn:Transaction) =
+        if List.isEmpty txn.Text |> not then addText edit (uint32(List.length txn.Text))
+        if List.isEmpty txn.Data |> not then addData edit (uint32(List.length txn.Data))
+        List1.iter (fun (ent,_,_,_) -> check edit ent) txn.Datum
 
 [<AutoOpen>]
 module Uri =
