@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>Fsion</AssemblyName>
     <PackageId>Fsion</PackageId>
@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Prelude.fs" />
+    <Compile Include="IO.fs" />
     <Compile Include="MapSlim.fs" />
     <Compile Include="SetSlim.fs" />
     <Compile Include="ListSlim.fs" />

@@ -25,7 +25,7 @@ let dataStoreTestList (store:Selector.Store) = [
             //}
         ]
 
-        testList "text" [
+        ptestList "text" [
 
             testAsync "same id" {
                 let expected = Text.ofString "hi you" |> Option.get |> store.GetTextId
@@ -52,7 +52,7 @@ let dataStoreTestList (store:Selector.Store) = [
             )
         ]
 
-        testList "data" [
+        ptestList "data" [
 
             testAsync "save" {
                 let expected = Data [|1uy;3uy|]
@@ -68,8 +68,8 @@ let dataStoreTestList (store:Selector.Store) = [
             }
 
             testProp "roundtrip" (fun (data:Data[]) ->
-                let byteIds = Array.Parallel.map store.GetDataId data
-                let actual = Array.Parallel.map store.GetData byteIds
+                let byteIds = Array.map store.GetDataId data
+                let actual = Array.map store.GetData byteIds
                 Expect.equal actual data "bytes same"
             )
         ]

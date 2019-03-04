@@ -20,6 +20,11 @@ module Gen =
             (fun (NonWhiteSpaceString s) -> Text.ofString s |> Option.get)
             (Text.toString >> NonWhiteSpaceString)
             Arb.from
+    let dataArb =
+        Arb.convert
+            (fun bs -> Data bs)
+            (fun (Data bs) -> bs)
+            Arb.from
     let list1Arb<'a> =
         Arb.convert
             (fun (x,xs:'a list) -> List1.init x xs)
