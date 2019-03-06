@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Prelude.fs" />
+    <Compile Include="DateTime.fs" />
     <Compile Include="IO.fs" />
     <Compile Include="MapSlim.fs" />
     <Compile Include="SetSlim.fs" />

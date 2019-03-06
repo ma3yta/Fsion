@@ -119,3 +119,15 @@ module List1 =
     let fold folder state (List1 l) = List.fold folder state l
     let ofSeq source = List.ofSeq source |> tryOfList
     let forall predicate (List1 l) = List.forall predicate l
+
+
+module Async =
+    let sequential l =
+        List.fold (fun s a ->
+             async.Bind(a,fun t ->
+                async {
+                    let! l = s
+                    return t::l
+                }
+            )
+        ) (async.Return []) l

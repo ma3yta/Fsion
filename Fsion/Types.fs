@@ -39,35 +39,6 @@ module Auto =
         | _ -> None
 
 [<Struct>]
-type Date = // TODO: pick a better start date
-    | Date of uint32
-    static member (-) (Date a, Date b) = int(a - b)
-    static member (+) (Date a, b: int) = Date(uint32(int a + b))
-    static member (-) (Date a, b: int) = Date(uint32(int a - b))
-
-module Date =
-    let minValue = Date 0u
-    let maxValue = Date UInt32.MaxValue
-    let ofDateTime (d:DateTime) =
-        d.Ticks / TimeSpan.TicksPerDay |> uint32 |> Date
-    let toDateTime (Date d) =
-        int64 d * TimeSpan.TicksPerDay |> DateTime
-
-[<Struct>]
-type Time =
-    | Time of int64
-
-module Time =
-    let toInt64 (Time ticks) =
-        ticks
-    let toDate (Time ticks) =
-        ticks / TimeSpan.TicksPerDay |> uint32 |> Date
-    let ofDateTime (d:DateTime) =
-        Time d.Ticks
-    let toDateTime (Time t) =
-        DateTime t
-
-[<Struct>]
 type Tx =
     | Tx of uint32
     member m.Int =

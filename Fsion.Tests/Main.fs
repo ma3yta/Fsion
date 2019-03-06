@@ -5,6 +5,7 @@ open Expecto
 
 let tests =
     testList null [
+        DateTimeTests.dateTimeTests
         MapSlimTests.mapSlimTests
         SetSlimTests.setSlimTests
         ListSlimTests.listSlimTests
